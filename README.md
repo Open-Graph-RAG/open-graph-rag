@@ -81,6 +81,21 @@ stack does not include LibreChat's separate RAG API and disables its related
 file search. Meilisearch is omitted, and conversation history search is
 disabled.
 
+## Product knowledge demo
+
+The [Jira and Figma demo](sample-data/product-knowledge-demo/README.md) uses
+fictional sources to explain two connected products and prepare a cross-team
+initiative. It includes an unresolved design/requirement conflict, missing
+policy ownership, a manual n8n ingestion workflow, and guided evaluation prompts.
+See the [concept](docs/ideas/product-knowledge-demo.md) for scope and assumptions.
+
+The [Product Knowledge agent](docs/agent-mcp-setup.md) combines LightRAG retrieval
+with selected read-only Jira and Figma MCP tools. External sources require
+each user's OAuth authorization; simulated demo sources use LightRAG only.
+The agent provisioning script and connection steps are documented in the agent
+guide. The demo workflow must be imported and executed separately; wait for
+LightRAG indexing before testing the demo questions.
+
 ## n8n automations
 
 Open `http://localhost:5678` and create the owner account. n8n stores workflows,

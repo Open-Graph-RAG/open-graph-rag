@@ -1,0 +1,101 @@
+{
+  "demo_id": "product-knowledge-demo-v1",
+  "fictional": true,
+  "use_cases": [
+    {
+      "id": "current-support-workflow",
+      "question": "How does support currently change a customer's plan?",
+      "expected_source_ids": ["jira-OPS-205"],
+      "known_claims": [
+        "The current implemented workflow is handled by a support agent.",
+        "The agent verifies the account, records the request, then submits a change through the Subscription Service."
+      ]
+    },
+    {
+      "id": "self-service-status",
+      "question": "Is self-service plan change live, and what happens after the customer confirms?",
+      "expected_source_ids": ["jira-CP-248", "figma-FLOW-02"],
+      "known_claims": [
+        "CP-248 is Proposed, so the ticket does not establish that self-service is implemented.",
+        "The draft FLOW-02 prototype says the new plan starts immediately after confirmation.",
+        "The prototype does not establish shipped product behavior."
+      ]
+    },
+    {
+      "id": "plan-change-effective-time-conflict",
+      "question": "After a self-service plan change request, when does the new plan become effective?",
+      "expected_source_ids": ["jira-CP-248", "figma-FLOW-02"],
+      "known_claims": [
+        "Jira CP-248 says the new plan becomes effective only after an account owner approves the request.",
+        "Figma FLOW-02 says confirmation applies the plan immediately.",
+        "These sources conflict about the same proposed flow; the available evidence does not resolve the decision.",
+        "The answer should report both claims, identify their source and status, and say the effective-time decision is unresolved."
+      ],
+      "conflict": {
+        "topic": "when the new plan becomes effective in the proposed self-service flow",
+        "claims": [
+          { "source_id": "jira-CP-248", "claim": "Only after account-owner approval." },
+          { "source_id": "figma-FLOW-02", "claim": "Immediately after customer confirmation." }
+        ],
+        "expected_resolution": "unresolved"
+      }
+    },
+    {
+      "id": "eligibility-owner-gap",
+      "question": "Which plans qualify for self-service plan changes, and who owns the eligibility rules?",
+      "expected_source_ids": ["jira-CP-263"],
+      "known_claims": [
+        "Eligibility rules are not specified in the available ticket.",
+        "The ticket owner is UNASSIGNED.",
+        "Do not infer an eligibility rule or invent an owner."
+      ]
+    },
+    {
+      "id": "teams-and-service",
+      "question": "Which teams own the Customer Portal, Operations Console, and shared Subscription Service?",
+      "expected_source_ids": ["context-team-ownership", "context-subscription-service"],
+      "known_claims": [
+        "Product (called Customer Experience in project tickets) owns the Customer Portal.",
+        "Customer Support (called Service Operations) owns the Operations Console and support-agent procedures.",
+        "Engineering (called Subscription Platform) owns the shared Subscription Service and its audit events.",
+        "Design (called Product Design) owns Figma prototypes."
+      ]
+    }
+  ],
+  "relationships": {
+    "documented": [
+      {
+        "source_id": "jira-CP-248",
+        "target_id": "figma-FLOW-01",
+        "relation": "related implementation design",
+        "evidence": "FLOW-01 explicitly lists CP-248."
+      },
+      {
+        "source_id": "jira-CP-248",
+        "target_id": "figma-FLOW-02",
+        "relation": "related implementation design",
+        "evidence": "FLOW-02 explicitly lists CP-248."
+      },
+      {
+        "source_id": "jira-CP-248",
+        "target_id": "jira-PLAT-77",
+        "relation": "related platform work",
+        "evidence": "PLAT-77 explicitly links to CP-248."
+      }
+    ],
+    "suggested_requires_validation": [
+      {
+        "source_id": "jira-CP-263",
+        "target_id": "jira-CP-248",
+        "relation": "eligibility may constrain the proposed self-service flow",
+        "reason": "Both concern Customer Portal self-service plan changes, but neither source explicitly links to the other."
+      },
+      {
+        "source_id": "jira-CP-271",
+        "target_id": "jira-CP-248",
+        "relation": "request-status work may relate to the proposed self-service flow",
+        "reason": "Both concern Customer Portal plan changes, but CP-271 does not specify approval or explicitly link to CP-248."
+      }
+    ]
+  }
+}

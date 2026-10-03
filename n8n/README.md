@@ -1,5 +1,8 @@
 # Import web pages into LightRAG
 
+For a self-contained demo with simulated Jira and Figma sources, see the
+[product knowledge demo](../sample-data/product-knowledge-demo/README.md).
+
 For notes exported from NotebookLM to Google Docs, see the
 [NotebookLM workflow](google-notebooks-README.md).
 
@@ -75,8 +78,9 @@ processes documents with the configured LLM and embedding providers.
 Run the workflow unit tests from the repository root:
 
 ```bash
-node n8n/tests/workflow.test.cjs
+node --test n8n/tests/*.test.cjs
 ```
 
-These mocked tests check validation, deduplication, and response handling.
+These mocked tests check web and NotebookLM validation, deduplication, response
+handling, and the fictional demo's document payloads and workflow structure.
 They do not replace importing the workflow and testing it in the running stack.

@@ -1,0 +1,83 @@
+{
+  "demo_id": "product-knowledge-demo-v1",
+  "fictional": true,
+  "documents": [
+    {
+      "id": "context-product-overview",
+      "source_type": "context",
+      "title": "Product overview: Northstar workspace",
+      "file_source": "demo-product-knowledge-v1-context-product-overview.txt",
+      "text": "DEMO FICTIONAL CONTEXT DOCUMENT. Product: Northstar Workspace, a fictional subscription management suite. Product team: Northstar. The suite contains Customer Portal and Operations Console, which both use the shared Subscription Service. The company and all names, systems, tickets, designs, events, and URLs in this document are invented for demonstration."
+    },
+    {
+      "id": "context-team-ownership",
+      "source_type": "context",
+      "title": "Team responsibilities",
+      "file_source": "demo-product-knowledge-v1-context-team-ownership.txt",
+      "text": "DEMO FICTIONAL CONTEXT DOCUMENT. In the Northstar demo, project-team labels map to four departments: Product is called Customer Experience in project tickets; Customer Support is called Service Operations; Engineering is called Subscription Platform; Design is called Product Design. Product (Customer Experience) owns the Customer Portal. Customer Support (Service Operations) owns the Operations Console and support-agent procedures. Engineering (Subscription Platform) owns the shared Subscription Service and its audit events. Design (Product Design) owns Figma prototypes. These assignments describe the fictional demo organization."
+    },
+    {
+      "id": "jira-CP-101",
+      "source_type": "jira",
+      "title": "CP-101: Show current plan in Customer Portal",
+      "file_source": "demo-product-knowledge-v1-jira-CP-101.txt",
+      "text": "DEMO FICTIONAL JIRA SNAPSHOT. Ticket: CP-101. Project: Customer Portal. Status: Done. Product: Northstar Workspace. Requirement: show the customer's current subscription plan and renewal date in Account > Plan. The Customer Experience team owns delivery. Source: https://jira.northstar.invalid/browse/CP-101."
+    },
+    {
+      "id": "jira-OPS-205",
+      "source_type": "jira",
+      "title": "OPS-205: Support-agent plan changes",
+      "file_source": "demo-product-knowledge-v1-jira-OPS-205.txt",
+      "text": "DEMO FICTIONAL JIRA SNAPSHOT. Ticket: OPS-205. Project: Operations Console. Status: Done. Product: Northstar Workspace. Current implemented support workflow: an agent verifies the account, records the customer's request, then submits a plan change through the Subscription Service. The Service Operations team owns this procedure. A customer-facing self-service plan-change flow is outside this ticket's scope. Source: https://jira.northstar.invalid/browse/OPS-205."
+    },
+    {
+      "id": "jira-CP-248",
+      "source_type": "jira",
+      "title": "CP-248: Proposed self-service plan changes",
+      "file_source": "demo-product-knowledge-v1-jira-CP-248.txt",
+      "text": "DEMO FICTIONAL JIRA SNAPSHOT. Ticket: CP-248. Project: Customer Portal. Status: Proposed. Product: Northstar Workspace. Requirement proposal: after a customer requests a plan change, display the request as pending and make the new plan effective only after an account owner approves it. The Customer Experience team is listed as the delivery team. This is a proposal; the ticket does not establish that the feature is implemented. Source: https://jira.northstar.invalid/browse/CP-248."
+    },
+    {
+      "id": "jira-PLAT-77",
+      "source_type": "jira",
+      "title": "PLAT-77: Record subscription plan-change events",
+      "file_source": "demo-product-knowledge-v1-jira-PLAT-77.txt",
+      "text": "DEMO FICTIONAL JIRA SNAPSHOT. Ticket: PLAT-77. Project: Subscription Platform. Status: In Progress. Product: Northstar Workspace. The shared Subscription Service must record plan-change events with account ID, previous plan, requested plan, actor, effective timestamp, and request ID. The Subscription Platform team owns the event schema. The ticket links to CP-248 because both discuss the self-service plan-change feature. Source: https://jira.northstar.invalid/browse/PLAT-77."
+    },
+    {
+      "id": "jira-CP-263",
+      "source_type": "jira",
+      "title": "CP-263: Clarify eligibility for self-service changes",
+      "file_source": "demo-product-knowledge-v1-jira-CP-263.txt",
+      "text": "DEMO FICTIONAL JIRA SNAPSHOT. Ticket: CP-263. Project: Customer Portal. Status: Open. Product: Northstar Workspace. The team needs to define which subscription plans and account types qualify for self-service plan changes. Owner: UNASSIGNED. The ticket contains no eligibility rules and does not identify a responsible team. Source: https://jira.northstar.invalid/browse/CP-263."
+    },
+    {
+      "id": "figma-FLOW-01",
+      "source_type": "figma",
+      "title": "FLOW-01: Customer plan-change prototype",
+      "file_source": "demo-product-knowledge-v1-figma-FLOW-01.txt",
+      "text": "DEMO FICTIONAL FIGMA SNAPSHOT. Design: FLOW-01. File: Northstar Customer Portal. Version: 0.8 draft. Product: Northstar Workspace. The Account > Plan prototype lets a customer choose a new plan and review the price and renewal date. The Product Design team owns the prototype. Related implementation ticket: CP-248. Source: https://figma.northstar.invalid/design/FLOW-01."
+    },
+    {
+      "id": "figma-FLOW-02",
+      "source_type": "figma",
+      "title": "FLOW-02: Confirmation screen for plan change",
+      "file_source": "demo-product-knowledge-v1-figma-FLOW-02.txt",
+      "text": "DEMO FICTIONAL FIGMA SNAPSHOT. Design: FLOW-02. File: Northstar Customer Portal. Version: 0.9 draft. Product: Northstar Workspace. The confirmation screen says: 'Your new plan starts now.' In this prototype, confirming the change applies the selected plan immediately. The Product Design team owns the prototype. Related implementation ticket: CP-248. Source: https://figma.northstar.invalid/design/FLOW-02."
+    },
+    {
+      "id": "jira-CP-271",
+      "source_type": "jira",
+      "title": "CP-271: Display request status after plan change",
+      "file_source": "demo-product-knowledge-v1-jira-CP-271.txt",
+      "text": "DEMO FICTIONAL JIRA SNAPSHOT. Ticket: CP-271. Project: Customer Portal. Status: Open. Product: Northstar Workspace. Support has reported that customers cannot tell whether a requested plan change is pending or complete. Add a clear request status to Account > Plan. The ticket does not define status values or say whether approval is required. The Customer Experience team is assigned. Source: https://jira.northstar.invalid/browse/CP-271."
+    },
+    {
+      "id": "context-subscription-service",
+      "source_type": "context",
+      "title": "Subscription Service overview",
+      "file_source": "demo-product-knowledge-v1-context-subscription-service.txt",
+      "text": "DEMO FICTIONAL CONTEXT DOCUMENT. The Northstar Subscription Service is the shared component that stores active plans and processes plan-change requests. The Customer Portal and Operations Console both call it. The Subscription Platform team owns the service. This overview does not define whether a customer request needs approval or when a new plan becomes effective."
+    }
+  ]
+}
