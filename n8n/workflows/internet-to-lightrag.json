@@ -1,0 +1,384 @@
+{
+  "name": "Internet prompt to LightRAG (deduplicated)",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "internet-to-lightrag",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a04101d4-2c3a-4ecf-89d6-454e85010001",
+      "name": "Authenticated prompt webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "internet-to-lightrag",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_N8N_CREDENTIAL_ID",
+          "name": "Internet ingest webhook auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body ?? $json;\nconst prompt = body.prompt;\nif (typeof prompt !== 'string' || !prompt.trim()) throw new Error('Request body must include a non-empty prompt string.');\nif (prompt.trim().length > 4000) throw new Error('prompt must be at most 4000 characters.');\nconst requested = body.maxResults === undefined ? 5 : body.maxResults;\nif (typeof requested !== 'number' || !Number.isInteger(requested) || requested < 1 || requested > 10) throw new Error('maxResults must be an integer from 1 to 10.');\nreturn [{ json: { prompt: prompt.trim(), maxResults: requested } }];"
+      },
+      "id": "a04101d4-2c3a-4ecf-89d6-454e85010002",
+      "name": "Validate prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tavily.com/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ query: $json.prompt, max_results: $json.maxResults, include_raw_content: true }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "a04101d4-2c3a-4ecf-89d6-454e85010003",
+      "name": "Search web with Tavily",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_N8N_CREDENTIAL_ID",
+          "name": "Tavily bearer API key"
+        },
+        "httpBearerAuth": {
+          "id": "REPLACE_WITH_N8N_CREDENTIAL_ID",
+          "name": "Tavily bearer API key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst results = Array.isArray(response.results) ? response.results : [];\nconst seen = new Set();\nconst seenUrls = new Set();\nconst docs = [];\nfor (const result of results) {\n  if (typeof result.raw_content !== 'string' || !result.raw_content.trim() || result.raw_content.length > 500000) continue;\n  if (typeof result.url !== 'string') continue;\n  const source = result.url.trim().split('#', 1)[0];\n  if (!/^https?:\\/\\/[^\\s/?#@]+(?:[/?#]|$)/i.test(source) || /[\\u0000-\\u0020\\u007f]/u.test(source)) continue;\n  if (seenUrls.has(source)) continue;\n  const text = result.raw_content.normalize('NFKC').replace(/\\s+/gu, ' ').trim();\n  if (!text) continue;\n  if (seen.has(text)) continue;\n  seen.add(text);\n  seenUrls.add(source);\n  docs.push({ text, file_source: source });\n}\nreturn [{json:{documents:docs, prompt:$('Validate prompt').first().json.prompt, found:docs.length}}];"
+      },
+      "id": "a04101d4-2c3a-4ecf-89d6-454e85010004",
+      "name": "Deduplicate raw page content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-results",
+              "leftValue": "={{ $json.found }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a04101d4-2c3a-4ecf-89d6-454e85010005",
+      "name": "Any usable pages?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const docs = $input.first().json.documents;\nreturn docs.map((doc, index) => ({ json: { ...doc, index, prompt: $input.first().json.prompt } }));"
+      },
+      "id": "a04101d4-2c3a-4ecf-89d6-454e85010006",
+      "name": "Expand unique pages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://lightrag:9621/documents/text",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: $json.text, file_source: $json.file_source }) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "a04101d4-2c3a-4ecf-89d6-454e85010007",
+      "name": "Queue page in LightRAG",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        -128
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_N8N_CREDENTIAL_ID",
+          "name": "LightRAG X-API-Key"
+        },
+        "httpBearerAuth": {
+          "id": "REPLACE_WITH_N8N_CREDENTIAL_ID",
+          "name": "LightRAG X-API-Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const responses = $input.all();\nconst pages = $('Expand unique pages').all();\nlet queued = 0, alreadyPresent = 0;\nconst trackIds = [];\nfor (let i=0; i<responses.length; i++) {\n  const r = responses[i].json;\n  const code = Number(r.statusCode ?? 0);\n  const body = r.body ?? {};\n  const detail = typeof body.detail === 'string' ? body.detail : '';\n  if (code >= 200 && code < 300) {\n    if (body.status !== 'success' || typeof body.track_id !== 'string' || !body.track_id) throw new Error(`LightRAG returned an incomplete success for ${pages[i]?.json.file_source ?? 'a page'}: ${JSON.stringify(body)}`);\n    queued++; trackIds.push(body.track_id); continue;\n  }\n  if (code === 409 && detail.startsWith('Document storage already contains')) { alreadyPresent++; continue; }\n  throw new Error(`LightRAG rejected ${pages[i]?.json.file_source ?? 'a page'} (HTTP ${code}): ${detail || JSON.stringify(body)}`);\n}\nreturn [{json:{status:queued ? 'queued' : 'skipped',message:queued ? 'LightRAG accepted documents for background processing; ingestion is not complete yet.' : 'All usable sources were already present in LightRAG; no new processing was queued.',queued,alreadyPresent,trackIds}}];"
+      },
+      "id": "a04101d4-2c3a-4ecf-89d6-454e85010008",
+      "name": "Summarize queue results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": "={{ $json.queued > 0 ? 202 : 200 }}"
+        }
+      },
+      "id": "a04101d4-2c3a-4ecf-89d6-454e85010009",
+      "name": "Reply queued",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1920,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({status:'skipped',message:'No usable raw page content was found. Nothing was sent to LightRAG.',queued:0,alreadyPresent:0,trackIds:[]}) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "a04101d4-2c3a-4ecf-89d6-454e85010010",
+      "name": "Reply no usable pages",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1200,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code node body: place directly after the Tavily HTTP Request node.\n// Keeps accepted Tavily result objects unchanged for the existing dedup node.\nconst response = $input.first()?.json;\nif (!response || typeof response !== 'object' || Array.isArray(response)) {\n  throw new Error('Tavily returned a malformed response object.');\n}\nif (response.error !== undefined && response.error !== null && response.error !== '') {\n  throw new Error(`Tavily search failed: ${String(response.error)}`);\n}\nif (!Array.isArray(response.results)) {\n  throw new Error('Tavily response must contain a results array.');\n}\n\nconst results = [];\nconst reasons = {};\nconst reject = (reason) => { reasons[reason] = (reasons[reason] ?? 0) + 1; };\nconst hasLetterOrNumber = /[\\p{L}\\p{N}]/u;\n// These patterns only apply to short, stand-alone denial/error pages. They avoid\n// rejecting useful articles that happen to discuss access errors.\nconst denialOnly = /^(?:access denied|access forbidden|403 forbidden|you have been blocked|request blocked|website unavailable|page unavailable|service unavailable|404 not found|page not found|this site can(?:not|\\x27t) be reached|the site can(?:not|\\x27t) be reached|robot check|captcha required|enable javascript and cookies to continue)[.!\\s]*$/i;\nfor (const result of response.results) {\n  if (!result || typeof result !== 'object' || Array.isArray(result)) { reject('malformed_result'); continue; }\n  if (typeof result.raw_content !== 'string' || !result.raw_content.trim()) { reject('missing_raw_content'); continue; }\n  if (result.raw_content.length > 500000) { reject('raw_content_too_large'); continue; }\n  if (typeof result.url !== 'string') { reject('invalid_url'); continue; }\n  const source = result.url.trim().split('#', 1)[0];\n  if (!/^https?:\\/\\/[^\\s/?#@]+(?:[/?#]|$)/i.test(source) || /[\\u0000-\\u0020\\u007f]/u.test(source)) { reject('invalid_url'); continue; }\n  const contentStart = result.raw_content.trimStart();\n  if (/^(?:<!doctype\\s+html\\b|<html\\b)/i.test(contentStart)) { reject('html_page'); continue; }\n  const trimmed = result.raw_content.trim();\n  if (!hasLetterOrNumber.test(trimmed)) { reject('no_alphanumeric_content'); continue; }\n  if (trimmed.length <= 300 && denialOnly.test(trimmed)) { reject('access_denied_or_error_page'); continue; }\n  results.push(result);\n}\nconst rejected = Object.values(reasons).reduce((sum, count) => sum + count, 0);\nreturn [{ json: { ...response, results, validation: { received: response.results.length, accepted: results.length, rejected, reasons } } }];\n"
+      },
+      "id": "e3931cbd-17a9-4368-a4d0-9e19b189bd98",
+      "name": "Validate search results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        650,
+        -220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code node body: place after the existing dedup node and before its IF node.\n// Text and source values are copied verbatim because LightRAG uses them for identity.\nconst input = $input.first()?.json;\nif (!input || typeof input !== 'object' || Array.isArray(input)) {\n  throw new Error('Deduplication step returned a malformed document bundle.');\n}\nif (!Array.isArray(input.documents)) {\n  throw new Error('Deduplication step must return a documents array.');\n}\nconst validated = $('Validate search results').first()?.json;\nif (!validated || !Array.isArray(validated.results)) {\n  throw new Error('Validated search results are unavailable for metadata mapping.');\n}\nconst stripFragment = (url) => url.split('#', 1)[0];\nconst metadataBySource = new Map();\nfor (const result of validated.results) {\n  if (!result || typeof result.url !== 'string') continue;\n  const source = stripFragment(result.url.trim());\n  if (!metadataBySource.has(source)) {\n    metadataBySource.set(source, {\n      title: typeof result.title === 'string' && result.title.trim() ? result.title : undefined,\n    });\n  }\n}\nconst seenSources = new Set();\nconst documents = input.documents.map((doc, index) => {\n  if (!doc || typeof doc !== 'object' || typeof doc.text !== 'string' || !doc.text.trim() || typeof doc.file_source !== 'string' || !doc.file_source.trim()) {\n    throw new Error(`Deduplicated document ${index} has invalid text/source alignment.`);\n  }\n  if (seenSources.has(doc.file_source)) {\n    throw new Error(`Deduplicated documents contain a repeated source at index ${index}.`);\n  }\n  seenSources.add(doc.file_source);\n  const match = metadataBySource.get(stripFragment(doc.file_source));\n  return {\n    ...doc,\n    metadata: {\n      source_url: doc.file_source,\n      ...(match?.title ? { title: match.title } : {}),\n      query: input.prompt,\n      content_type: 'text/plain',\n    },\n  };\n});\nreturn [{ json: { ...input, found: documents.length, documents } }];\n"
+      },
+      "id": "b2040f3e-54d9-4306-8e71-92667c7b4f03",
+      "name": "Prepare graph documents",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        890,
+        -220
+      ]
+    }
+  ],
+  "connections": {
+    "Authenticated prompt webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate prompt": {
+      "main": [
+        [
+          {
+            "node": "Search web with Tavily",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search web with Tavily": {
+      "main": [
+        [
+          {
+            "node": "Validate search results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deduplicate raw page content": {
+      "main": [
+        [
+          {
+            "node": "Prepare graph documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any usable pages?": {
+      "main": [
+        [
+          {
+            "node": "Expand unique pages",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reply no usable pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand unique pages": {
+      "main": [
+        [
+          {
+            "node": "Queue page in LightRAG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Queue page in LightRAG": {
+      "main": [
+        [
+          {
+            "node": "Summarize queue results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize queue results": {
+      "main": [
+        [
+          {
+            "node": "Reply queued",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate search results": {
+      "main": [
+        [
+          {
+            "node": "Deduplicate raw page content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare graph documents": {
+      "main": [
+        [
+          {
+            "node": "Any usable pages?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "versionCounter": 7
+}

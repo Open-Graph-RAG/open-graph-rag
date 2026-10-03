@@ -11,15 +11,16 @@ Postgres non lo sostituisce.
 Servono Docker Engine/Docker Desktop con Compose v2 e Python 3 sul computer.
 Come punto di partenza, assegna a Docker 8 GB di RAM e almeno 15 GB di disco;
 lo spazio necessario cresce con immagini e documenti. Nessuna GPU richiesta
-con i provider API preconfigurati.
+per gli embedding locali: Ollama usa la CPU nella configurazione predefinita.
 
 ```bash
 cd librechat-lightrag-stack
 python3 scripts/init_env.py
 ```
 
-Apri `.env` e inserisci `CHAT_API_KEY`, `KNOWLEDGE_API_KEY` ed
-`EMBEDDING_API_KEY`: possono contenere la stessa chiave. I valori di esempio
+Apri `.env` e inserisci `CHAT_API_KEY` e `KNOWLEDGE_API_KEY`:
+possono contenere la stessa chiave. Gli embedding usano Ollama nello stack
+con `EMBEDDING_API_KEY=ollama` (segnaposto, non una credenziale). I valori di esempio
 non sono credenziali valide. Modifica anche i modelli se il tuo account non ha
 accesso a quelli indicati. Non condividere `.env`.
 
@@ -27,10 +28,13 @@ accesso a quelli indicati. Non condividere `.env`.
 docker compose config --quiet
 docker compose up -d --build
 docker compose ps
-docker compose logs --tail=100 lightrag mcp librechat n8n
+docker compose logs --tail=100 ollama lightrag mcp librechat n8n
 ```
 
-Il primo avvio scarica immagini e crea il database. LightRAG deve diventare
+Il primo avvio scarica immagini, crea il database e scarica `bge-m3` (circa
+1,2 GB) tramite il servizio temporaneo `ollama-init`. Il modello resta nel
+volume `ollama_data`; `ollama-init` termina con codice 0 al completamento.
+LightRAG attende il download e deve diventare
 healthy prima dell'avvio di MCP e LibreChat.
 
 | Interfaccia | URL | Accesso |
@@ -83,7 +87,9 @@ credenziali e la chiave di cifratura nel volume `n8n_data`; conserva questo
 volume nei backup. Da un nodo HTTP Request puoi raggiungere LightRAG a
 `http://lightrag:9621` e autenticarti con il valore di `LIGHTRAG_API_KEY` della
 tua `.env`. Inserisci la chiave nelle credenziali di n8n, senza scriverla nei
-workflow esportati. n8n non crea workflow o sincronizzazioni automaticamente.
+workflow esportati. È incluso un workflow manuale per cercare contenuti web
+con Tavily e accodarli a LightRAG: consulta la [guida n8n](n8n/README.md) per
+importazione, credenziali e uso. Non ci sono sincronizzazioni programmate.
 
 La UI è accessibile solo dal computer che esegue Docker. Anche i webhook
 ricevono richieste solo da lì finché non configuri un reverse proxy HTTPS e
@@ -125,10 +131,15 @@ Sono separati tre ruoli configurabili in `.env`:
 - `KNOWLEDGE_*`: modello usato da LightRAG per estrazione e keyword.
 - `EMBEDDING_*`: modello che produce i vettori, con dimensione coerente.
 
-La configurazione iniziale usa endpoint OpenAI e modelli indicati negli esempi
-dei progetti. Lo stack applicativo è self-hosted, ma **l'inferenza predefinita
-usa API esterne**: testi e query vengono inviati ai provider configurati e le
-chiamate possono avere un costo. Per inferenza locale configura endpoint
+Gli embedding predefiniti usano `bge-m3` su Ollama nello stack, tramite
+`http://ollama:11434/v1`, con 1024 dimensioni. Ollama non pubblica porte
+sull'host e non modifica l'installazione Ollama già presente sul computer.
+`BAAI/bge-reranker-v2-m3` è invece un reranker: non produce gli embedding
+richiesti da questa configurazione. Il reranking resta disabilitato.
+
+Chat, estrazione e keyword usano ancora endpoint OpenAI: **queste chiamate
+usano API esterne**, possono inviare testi e query ai provider configurati e
+possono avere un costo. Per rendere locali anche questi modelli configura endpoint
 OpenAI-compatible raggiungibili dai container, modelli adatti e chiavi
 eventualmente fittizie se richieste dal server locale.
 
@@ -137,17 +148,46 @@ servizio Docker, usa il suo nome di rete. Per un provider sull'host Linux,
 aggiungi `extra_hosts: ["host.docker.internal:host-gateway"]` ai servizi che lo
 devono contattare; su Docker Desktop il nome è normalmente disponibile.
 
-Non cambiare modello/dimensione degli embedding su un indice già popolato:
-usa un nuovo database/workspace e reindicizza. `text-embedding-3-small` è
-configurato con la dimensione standard 1536; `EMBEDDING_SEND_DIM=false` evita
-di richiedere un parametro dimensions a provider che non lo supportano.
+Non cambiare modello/dimensione degli embedding su un indice già popolato.
+`LIGHTRAG_WORKSPACE=company_bge_m3` seleziona un workspace nuovo; LightRAG
+1.5.7 separa le tabelle vettoriali anche per modello e dimensione. I documenti
+del vecchio workspace `company` non compaiono automaticamente nel nuovo:
+occorre reindicizzare i testi originali. `EMBEDDING_SEND_DIM=false` e
+`EMBEDDING_USE_BASE64=false` rendono le richieste compatibili con Ollama.
+
+### Migrazione e rollback
+
+Per un'installazione esistente, conserva la vecchia `.env` in un percorso
+ignorato da Git e imposta endpoint, chiave segnaposto, modello, dimensione e
+workspace come in `.env.example`. Ricrea LightRAG dopo aver verificato Ollama:
+
+```bash
+docker compose up -d ollama
+docker compose run --rm ollama-init
+docker compose exec ollama ollama list
+docker compose up -d lightrag
+docker compose exec mcp python smoke.py
+```
+
+Carica un piccolo documento e verifica una ricerca prima della reindicizzazione
+completa. La configurazione CPU non richiede una GPU; i tempi di indicizzazione
+dipendono da CPU, RAM e lunghezza dei documenti.
+
+Per tornare al vecchio indice, ripristina endpoint/chiave/modello/dimensione
+precedenti e imposta `LIGHTRAG_WORKSPACE=company`, poi esegui
+`docker compose up -d lightrag`. La vecchia `.env` potrebbe non contenere il
+workspace: aggiungilo esplicitamente. Mantieni i volumi; non usare `down -v`.
+La migrazione su questa macchina salva la configurazione precedente in
+`backups/pre-ollama.env` e i testi originali in `backups/company-documents.json`;
+entrambi restano ignorati da Git e possono contenere dati riservati.
 
 ## Aggiornamenti e scrittura
 
 Caricamenti, rimozioni e modifiche amministrative si fanno in LightRAG.
 MCP espone soltanto ricerca: l'LLM di LibreChat non può aggiungere o cancellare
-fatti. Non ci sono workflow preconfigurati per Drive, email o CRM e non c'è
-sincronizzazione schedulata: puoi crearli in n8n.
+fatti. Non ci sono workflow preconfigurati per Drive, email o CRM né
+sincronizzazioni schedulate; è incluso il workflow manuale per importare pagine
+web descritto nella [guida n8n](n8n/README.md).
 
 Il workspace `company` e la chiave MCP sono condivisi: tutti gli utenti a cui
 assegni il tool possono interrogare la stessa knowledge base. Non è una

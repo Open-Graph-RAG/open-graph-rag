@@ -1,0 +1,100 @@
+{
+  "name": "NotebookLM exported Google Docs to LightRAG",
+  "description": "Fetches a NotebookLM-exported Google Doc as plain text and queues it in LightRAG.",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "google-notebooks-to-lightrag", "authentication": "headerAuth", "responseMode": "responseNode", "options": {} },
+      "id": "b15101d4-2c3a-4ecf-89d6-454e85010001",
+      "name": "Authenticated NotebookLM webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "google-notebooks-to-lightrag",
+      "credentials": { "httpHeaderAuth": { "id": "REPLACE_WITH_N8N_CREDENTIAL_ID", "name": "Notebook ingest webhook auth" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body ?? $json;\nconst driveFileId = body.driveFileId;\nif (typeof driveFileId !== 'string' || !/^[A-Za-z0-9_-]{10,200}$/.test(driveFileId)) throw new Error('driveFileId must be a valid Google Drive file ID.');\nconst notebook = body.notebook === undefined ? '' : body.notebook;\nif (typeof notebook !== 'string' || notebook.length > 500) throw new Error('notebook must be a string of at most 500 characters.');\nreturn [{json:{driveFileId,notebook:notebook.trim(),file_source:`https://docs.google.com/document/d/${driveFileId}/edit`}}];"
+      },
+      "id": "b15101d4-2c3a-4ecf-89d6-454e85010002",
+      "name": "Validate exported document request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://www.googleapis.com/drive/v3/files/' + $('Validate exported document request').first().json.driveFileId + '/export?mimeType=text%2Fplain' }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": { "response": { "response": { "fullResponse": true, "neverError": true, "responseFormat": "text" } } }
+      },
+      "id": "b15101d4-2c3a-4ecf-89d6-454e85010003",
+      "name": "Export Google Doc as text",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 0],
+      "credentials": { "googleDriveOAuth2Api": { "id": "REPLACE_WITH_N8N_CREDENTIAL_ID", "name": "Google Drive OAuth2" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first()?.json;\nconst request = $('Validate exported document request').first()?.json;\nif (!response || !request) throw new Error('Google Drive export response or request is unavailable.');\nconst code = Number(response.statusCode ?? 0);\nif (code < 200 || code >= 300) throw new Error(`Google Drive export failed (HTTP ${code}): ${typeof response.body === 'string' ? response.body.slice(0, 500) : JSON.stringify(response.body)}`);\nif (typeof response.body !== 'string' || !response.body.trim()) throw new Error('Google Drive returned an empty or non-text export. Ensure the file is a Google Doc exported from NotebookLM.');\nif (response.body.length > 500000) throw new Error('Exported text exceeds the 500000-character limit.');\nreturn [{json:{text:response.body,file_source:request.file_source,notebook:request.notebook}}];"
+      },
+      "id": "b15101d4-2c3a-4ecf-89d6-454e85010004",
+      "name": "Validate exported text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://lightrag:9621/documents/text",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: $json.text, file_source: $json.file_source }) }}",
+        "options": { "response": { "response": { "fullResponse": true, "neverError": true, "responseFormat": "json" } } }
+      },
+      "id": "b15101d4-2c3a-4ecf-89d6-454e85010005",
+      "name": "Queue exported text in LightRAG",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 0],
+      "credentials": { "httpHeaderAuth": { "id": "REPLACE_WITH_N8N_CREDENTIAL_ID", "name": "LightRAG X-API-Key" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst code = Number(response.statusCode ?? 0);\nconst body = response.body ?? {};\nconst source = $('Validate exported document request').first().json.file_source;\nconst detail = typeof body.detail === 'string' ? body.detail : '';\nif (code >= 200 && code < 300) {\n  if (body.status !== 'success' || typeof body.track_id !== 'string' || !body.track_id) throw new Error(`LightRAG returned an incomplete success for ${source}: ${JSON.stringify(body)}`);\n  return [{json:{status:'queued',message:'LightRAG accepted the document for background processing; ingestion is not complete yet.',file_source:source,queued:1,alreadyPresent:0,track_id:body.track_id}}];\n}\nif (code === 409 && detail.startsWith('Document storage already contains')) return [{json:{status:'already_present',message:'This source is already present in LightRAG.',file_source:source,queued:0,alreadyPresent:1}}];\nthrow new Error(`LightRAG rejected ${source} (HTTP ${code}): ${detail || JSON.stringify(body)}`);"
+      },
+      "id": "b15101d4-2c3a-4ecf-89d6-454e85010006",
+      "name": "Summarize ingestion result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 0]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}", "options": { "responseCode": "={{ $json.queued > 0 ? 202 : 200 }}" } },
+      "id": "b15101d4-2c3a-4ecf-89d6-454e85010007",
+      "name": "Reply with ingestion status",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1440, 0]
+    }
+  ],
+  "connections": {
+    "Authenticated NotebookLM webhook": { "main": [[{ "node": "Validate exported document request", "type": "main", "index": 0 }]] },
+    "Validate exported document request": { "main": [[{ "node": "Export Google Doc as text", "type": "main", "index": 0 }]] },
+    "Export Google Doc as text": { "main": [[{ "node": "Validate exported text", "type": "main", "index": 0 }]] },
+    "Validate exported text": { "main": [[{ "node": "Queue exported text in LightRAG", "type": "main", "index": 0 }]] },
+    "Queue exported text in LightRAG": { "main": [[{ "node": "Summarize ingestion result", "type": "main", "index": 0 }]] },
+    "Summarize ingestion result": { "main": [[{ "node": "Reply with ingestion status", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true, "timeSavedMode": "fixed", "callerPolicy": "workflowsFromSameOwner", "availableInMCP": false },
+  "staticData": null,
+  "versionCounter": 1
+}

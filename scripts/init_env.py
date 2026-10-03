@@ -21,4 +21,4 @@ except FileExistsError:
     raise SystemExit(".env esiste già: nessuna modifica effettuata.")
 with os.fdopen(fd, "w") as f:
     f.write(content)
-print("Creato .env. Inserisci CHAT_API_KEY, KNOWLEDGE_API_KEY ed EMBEDDING_API_KEY.")
+print("Creato .env. Inserisci CHAT_API_KEY e KNOWLEDGE_API_KEY.")
