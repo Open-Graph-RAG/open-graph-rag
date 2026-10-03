@@ -1,80 +1,82 @@
-# Importare pagine web in LightRAG
+# Import web pages into LightRAG
 
-Per le note esportate da NotebookLM in Google Docs, consulta
-[il workflow NotebookLM](google-notebooks-README.md).
+For notes exported from NotebookLM to Google Docs, see the
+[NotebookLM workflow](google-notebooks-README.md).
 
-Il workflow `workflows/internet-to-lightrag.json` accetta un prompt, cerca fino
-a dieci risultati con Tavily e invia a LightRAG soltanto le pagine per cui
-Tavily restituisce `raw_content`. Non usa gli snippet dei risultati come
-contenuto sostitutivo. L'importazione è manuale: il workflow è inattivo dopo
-l'importazione e non esegue ricerche programmate.
+The `workflows/internet-to-lightrag.json` workflow accepts a prompt, searches
+for up to ten results with Tavily, and sends only pages for which Tavily
+returns `raw_content` to LightRAG. It does not substitute result snippets for
+page content. Import is manual: the workflow is inactive after import and does
+not run scheduled searches.
 
-## Configurazione
+## Setup
 
-1. Accedi a n8n su `http://localhost:5678`, crea l'account proprietario e
-   importa `internet-to-lightrag.json` dalla sezione **Workflows**.
-2. Crea due credenziali **Header Auth** e una **Bearer Auth** per Tavily e assegnale ai nodi indicati:
+1. Open n8n at `http://localhost:5678`, create the owner account, and import
+   `internet-to-lightrag.json` from the **Workflows** section.
+2. Create two **Header Auth** credentials and one **Bearer Auth** credential
+   for Tavily, then assign them to the indicated nodes:
 
-   | Credenziale | Header | Valore |
+   | Credential | Header | Value |
    |---|---|---|
-   | `Internet ingest webhook auth` | `X-Ingest-Token` | Un token casuale scelto da te |
-| `Tavily bearer API key` (Bearer Auth) | `Authorization` automatico | Solo `<TAVILY_API_KEY>`, senza prefisso `Bearer` |
-   | `LightRAG X-API-Key` | `X-API-Key` | Valore `LIGHTRAG_API_KEY` del file `.env` |
+   | `Internet ingest webhook auth` | `X-Ingest-Token` | A random token you choose |
+   | `Tavily bearer API key` (Bearer Auth) | `Authorization` (set automatically) | `<TAVILY_API_KEY>` only, without the `Bearer` prefix |
+   | `LightRAG X-API-Key` | `X-API-Key` | The `LIGHTRAG_API_KEY` value from `.env` |
 
-   La prima protegge il webhook in ingresso. Le altre due tengono le chiavi
-   fuori dal JSON del workflow esportato. Le credenziali sono conservate nel
-   volume `n8n_data`.
-3. Salva e attiva/pubblica il workflow. Il JSON importato contiene riferimenti
-   segnaposto alle credenziali, che n8n richiede di ricollegare.
+   The first credential protects the incoming webhook. The other two keep
+   their keys out of the exported workflow JSON. Credentials are stored in the
+   `n8n_data` volume.
+3. Save and activate/publish the workflow. The imported JSON contains
+   placeholder credential references that n8n requires you to reconnect.
 
-## Invio di una richiesta
+## Send a request
 
-Con il workflow attivo, invia una richiesta dal computer che esegue Docker:
+With the workflow active, send a request from the computer running Docker:
 
 ```bash
 curl -X POST http://localhost:5678/webhook/internet-to-lightrag \
   -H 'Content-Type: application/json' \
-  -H 'X-Ingest-Token: IL_TUO_TOKEN' \
-  -d '{"prompt":"documentazione aggiornata su PostgreSQL 17","maxResults":5}'
+  -H 'X-Ingest-Token: YOUR_TOKEN' \
+  -d '{"prompt":"current PostgreSQL 17 documentation","maxResults":5}'
 ```
 
-`prompt` è obbligatorio. `maxResults` è facoltativo, predefinito a 5 e limitato
-all'intervallo da 1 a 10 (numero intero JSON). Il prompt può contenere fino a
-4000 caratteri; le pagine oltre 500000 caratteri vengono scartate. La risposta riporta le pagine messe in coda, quelle
-già presenti con la stessa sorgente e i `trackIds` restituiti da LightRAG.
-Una risposta `202` significa che LightRAG ha accettato i documenti per
-l'elaborazione in background; non significa che siano già indicizzabili.
-Controlla ogni ID con `GET
-http://localhost:9621/documents/track_status/{track_id}` autenticandoti con
-`X-API-Key`. Un HTTP `409` per una sorgente già presente viene contato come
-già presente; gli altri errori di LightRAG fanno fallire l'esecuzione.
+`prompt` is required. `maxResults` is optional, defaults to 5, and must be a
+JSON integer from 1 to 10. The prompt can contain up to 4000 characters; pages
+over 500000 characters are discarded. The response reports pages queued,
+sources already present, and the `trackIds` returned by LightRAG. An HTTP `202`
+means LightRAG accepted the documents for background processing; they may not
+be searchable yet. Check each ID with
+`GET http://localhost:9621/documents/track_status/{track_id}`, authenticated
+with `X-API-Key`. An HTTP `409` for an existing source is counted as already
+present; other LightRAG errors fail the execution.
 
-## Deduplicazione e limiti
+## Deduplication and limits
 
-Il nodo **Validate search results** controlla la risposta di Tavily, scarta
-risultati malformati, URL non validi, pagine HTML non estratte e risposte di
-accesso negato. Una risposta del provider malformata fa fallire il workflow.
-**Prepare graph documents** aggiunge metadati di provenienza agli item n8n,
-senza modificare testo o sorgente inviati a LightRAG. LightRAG riceve ancora
-`text` e `file_source` ed estrae entità e relazioni con il modello configurato.
-Questi controlli verificano il formato dei risultati, non la veridicità dei fatti.
+The **Validate search results** node checks Tavily's response and discards
+malformed results, invalid URLs, unextracted HTML pages, and access-denied
+responses. A malformed provider response fails the workflow. **Prepare graph
+documents** adds provenance metadata to n8n items without changing the text or
+source sent to LightRAG. LightRAG still receives `text` and `file_source` and
+extracts entities and relationships using its configured model. These checks
+validate the result format, not the truth of its claims.
 
-Il workflow normalizza gli spazi e Unicode NFKC e rimuove i contenuti identici
-nella stessa esecuzione. LightRAG applica anche la propria deduplicazione
-persistente sul contenuto durante l'elaborazione; quindi una risposta in coda
-non garantisce un nuovo documento nello stato `processed`. La sorgente URL è
-salvata separatamente dal contenuto. Se una sorgente esiste già, LightRAG può
-rifiutare un nuovo invio della stessa URL anche quando la pagina è cambiata.
-Per aggiornare quel documento, rimuovi prima la versione esistente tramite la
-WebUI/API di LightRAG e invia nuovamente il workflow.
+The workflow normalizes whitespace and Unicode NFKC and removes identical
+content within each run. LightRAG also deduplicates content persistently while
+processing it, so a queued response does not guarantee a new document reaches
+the `processed` state. The source URL is stored separately from the content. If
+a source already exists, LightRAG may reject the same URL even when the page
+has changed. To update that document, remove the existing version through the
+LightRAG WebUI/API, then submit the workflow again. The workflow uses the raw
+content Tavily can extract: it does not crawl linked pages, bypass paywalls, or
+perform semantic deduplication. Tavily search may incur charges; LightRAG
+processes documents with the configured LLM and embedding providers.
 
-Il flusso usa i contenuti grezzi che Tavily riesce a estrarre: non esegue una
-crawl ricorsiva, non aggira paywall e non fa deduplicazione semantica. Tavily
-può addebitare la ricerca; LightRAG usa i provider LLM ed embedding configurati
-per processare i documenti.
+## Offline verification
 
-## Verifica offline
+Run the workflow unit tests from the repository root:
 
-Esegui `node n8n/tests/workflow.test.cjs` dalla directory principale per
-verificare validazione, deduplicazione e gestione delle risposte simulate.
-Questi test non sostituiscono l'importazione e una prova nello stack in esecuzione.
+```bash
+node n8n/tests/workflow.test.cjs
+```
+
+These mocked tests check validation, deduplication, and response handling.
+They do not replace importing the workflow and testing it in the running stack.

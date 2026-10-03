@@ -18,7 +18,7 @@ for key, size in lengths.items():
 try:
     fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
 except FileExistsError:
-    raise SystemExit(".env esiste già: nessuna modifica effettuata.")
+    raise SystemExit(".env already exists: no changes made.")
 with os.fdopen(fd, "w") as f:
     f.write(content)
-print("Creato .env. Inserisci CHAT_API_KEY e KNOWLEDGE_API_KEY.")
+print("Created .env. Set CHAT_API_KEY and KNOWLEDGE_API_KEY.")

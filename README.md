@@ -1,28 +1,28 @@
 # LibreChat + LightRAG + n8n + Postgres + MCP
 
-Stack locale per una knowledge base condivisa. LibreChat è la chat; LightRAG
-indicizza documenti e recupera evidenze; il bridge MCP collega i due sistemi.
-n8n offre un'interfaccia per creare automazioni che chiamano LightRAG.
-MongoDB è incluso perché LibreChat lo richiede per utenti e conversazioni:
-Postgres non lo sostituisce.
+A shared knowledge base stack. LibreChat provides the chat interface; LightRAG
+indexes documents and retrieves evidence; the MCP bridge connects the two.
+n8n provides an interface for creating automations that call LightRAG.
+MongoDB is included because LibreChat requires it for users and conversations;
+Postgres does not replace it.
 
-## Avvio
+## Getting started
 
-Servono Docker Engine/Docker Desktop con Compose v2 e Python 3 sul computer.
-Come punto di partenza, assegna a Docker 8 GB di RAM e almeno 15 GB di disco;
-lo spazio necessario cresce con immagini e documenti. Nessuna GPU richiesta
-per gli embedding locali: Ollama usa la CPU nella configurazione predefinita.
+You need Docker Engine/Docker Desktop with Compose v2 and Python 3 on your
+computer. As a starting point, allocate 8 GB of RAM and at least 15 GB of disk
+space to Docker; the required space grows with images and documents. No GPU is
+required for local embeddings: Ollama uses the CPU by default.
 
 ```bash
 cd librechat-lightrag-stack
 python3 scripts/init_env.py
 ```
 
-Apri `.env` e inserisci `CHAT_API_KEY` e `KNOWLEDGE_API_KEY`:
-possono contenere la stessa chiave. Gli embedding usano Ollama nello stack
-con `EMBEDDING_API_KEY=ollama` (segnaposto, non una credenziale). I valori di esempio
-non sono credenziali valide. Modifica anche i modelli se il tuo account non ha
-accesso a quelli indicati. Non condividere `.env`.
+Open `.env` and enter `CHAT_API_KEY` and `KNOWLEDGE_API_KEY`:
+they can use the same key. Embeddings use Ollama in the stack with
+`EMBEDDING_API_KEY=ollama` (a placeholder, not a credential). Example values
+are not valid credentials. Change the models too if your account does not have
+access to the ones shown. Do not share `.env`.
 
 ```bash
 docker compose config --quiet
@@ -31,135 +31,139 @@ docker compose ps
 docker compose logs --tail=100 ollama lightrag mcp librechat n8n
 ```
 
-Il primo avvio scarica immagini, crea il database e scarica `bge-m3` (circa
-1,2 GB) tramite il servizio temporaneo `ollama-init`. Il modello resta nel
-volume `ollama_data`; `ollama-init` termina con codice 0 al completamento.
-LightRAG attende il download e deve diventare
-healthy prima dell'avvio di MCP e LibreChat.
+The first startup downloads images, creates the database, and downloads
+`bge-m3` (about 1.2 GB) through the temporary `ollama-init` service. The model
+remains in the `ollama_data` volume; `ollama-init` exits with code 0 when it
+finishes. LightRAG waits for the download and must become healthy before MCP
+and LibreChat start.
 
-| Interfaccia | URL | Accesso |
+| Interface | URL | Access |
 |---|---|---|
-| LibreChat | http://localhost:3080 | Registra il tuo primo account |
-| LightRAG | http://localhost:9621/webui | Inserisci il valore di `LIGHTRAG_API_KEY` dalla tua `.env` |
-| n8n | http://localhost:5678 | Crea l'account proprietario al primo accesso |
+| LibreChat | http://localhost:3080 | Register your first account |
+| LightRAG | http://localhost:9621/webui | Enter the `LIGHTRAG_API_KEY` value from your `.env` |
+| n8n | http://localhost:5678 | Create the owner account on first access |
 
-Le porte sono pubblicate solo su `127.0.0.1`. Se avvii lo stack su un server
-remoto, usa un tunnel SSH per provarlo dal tuo computer:
+Ports are published only on `127.0.0.1`. If you run the stack on a remote
+server, use an SSH tunnel to access it from your computer:
 
 ```bash
-ssh -L 3080:127.0.0.1:3080 -L 9621:127.0.0.1:9621 -L 5678:127.0.0.1:5678 utente@server
+ssh -L 3080:127.0.0.1:3080 -L 9621:127.0.0.1:9621 -L 5678:127.0.0.1:5678 user@server
 ```
 
-Dopo avere creato gli account necessari, puoi impostare
-`ALLOW_REGISTRATION=false` in `.env` e applicarlo con:
+After creating the necessary accounts, you can set
+`ALLOW_REGISTRATION=false` in `.env` and apply it with:
 
 ```bash
 docker compose up -d librechat
 ```
 
-## Prima domanda sui tuoi documenti
+## Ask your documents a first question
 
-1. Apri LightRAG → Documents e carica `sample-data/demo-acme.txt`.
-2. Attendi lo stato **processed**. Il caricamento avvia l'indicizzazione,
-   che richiede il provider LLM e quello degli embedding.
-3. In LibreChat seleziona il modello configurato, apri il menu dei tool/MCP
-   e abilita `lightrag`. In alternativa crea un Agent e assegna il tool
-   `knowledge_search` al suo modello. Serve un modello che supporti tool calling.
-4. Chiedi: «Usa la knowledge base: chi gestisce il contratto Acme Demo e
-   quando scade? Cita il documento.»
-5. Controlla che compaia la chiamata `knowledge_search`. Le evidenze del demo
-   riportano **Giulia Bianchi Demo**, **31 dicembre 2026** e `demo-acme.txt`.
+1. Open LightRAG → Documents and upload `sample-data/demo-acme.txt`.
+2. Wait for the **processed** status. Uploading starts indexing, which requires
+   the LLM and embedding providers.
+3. In LibreChat, select the configured model, open the tools/MCP menu, and
+   enable `lightrag`. Alternatively, create an Agent and assign the
+   `knowledge_search` tool to its model. The model must support tool calling.
+4. Ask: “Use the knowledge base: who manages the Acme Demo contract, and when
+   does it expire? Cite the document.”
+5. Check that the `knowledge_search` call appears. The demo evidence gives
+   **Giulia Bianchi Demo**, **December 31, 2026**, and `demo-acme.txt`.
 
-Le istruzioni del server chiedono al modello di consultare la knowledge base,
-ma non impongono una chiamata per ogni messaggio: verifica la chiamata del tool.
-Un eventuale nome come `knowledge_search_mcp_lightrag` è la denominazione
-assegnata dal client al medesimo tool.
+The server instructions ask the model to consult the knowledge base, but do not
+require a tool call for every message: check that the tool was called. A name
+such as `knowledge_search_mcp_lightrag` may be the client-assigned name for the
+same tool.
 
-I documenti vanno caricati nella WebUI LightRAG. Allegare un file alla chat di
-LibreChat **non lo aggiunge automaticamente a LightRAG**. Questo stack non
-include il RAG API separato di LibreChat e disabilita il relativo file search.
-Meilisearch è omesso e la ricerca storica delle conversazioni è disabilitata.
+Documents must be uploaded through the LightRAG WebUI. Attaching a file to a
+LibreChat conversation **does not automatically add it to LightRAG**. This
+stack does not include LibreChat's separate RAG API and disables its related
+file search. Meilisearch is omitted, and conversation history search is
+disabled.
 
-## Automazioni con n8n
+## n8n automations
 
-Apri `http://localhost:5678` e crea l'account proprietario. n8n salva workflow,
-credenziali e la chiave di cifratura nel volume `n8n_data`; conserva questo
-volume nei backup. Da un nodo HTTP Request puoi raggiungere LightRAG a
-`http://lightrag:9621` e autenticarti con il valore di `LIGHTRAG_API_KEY` della
-tua `.env`. Inserisci la chiave nelle credenziali di n8n, senza scriverla nei
-workflow esportati. È incluso un workflow manuale per cercare contenuti web
-con Tavily e accodarli a LightRAG: consulta la [guida n8n](n8n/README.md) per
-importazione, credenziali e uso. Non ci sono sincronizzazioni programmate.
+Open `http://localhost:5678` and create the owner account. n8n stores workflows,
+credentials, and its encryption key in the `n8n_data` volume; include this
+volume in backups. An HTTP Request node can reach LightRAG at
+`http://lightrag:9621` and authenticate with the `LIGHTRAG_API_KEY` value from
+your `.env`. Put the key in n8n credentials, not in exported workflows. The
+repository includes a manual workflow for searching web content with Tavily
+and queuing it in LightRAG, plus a workflow for ingesting exported NotebookLM
+Docs. See the [n8n guide](n8n/README.md) for importing, credentials, and use.
+There are no scheduled synchronizations.
 
-La UI è accessibile solo dal computer che esegue Docker. Anche i webhook
-ricevono richieste solo da lì finché non configuri un reverse proxy HTTPS e
-l'URL pubblico di n8n. `N8N_PORT` e `N8N_TIMEZONE` sono configurabili in `.env`.
+The UI is accessible only from the computer running Docker. Webhooks also
+receive requests only from there until you configure an HTTPS reverse proxy
+and the public n8n URL. `N8N_PORT` and `N8N_TIMEZONE` can be configured in
+`.env`.
 
-## Chi salva cosa
+## What each service stores
 
-| Servizio | Dati / ruolo | Persistenza |
+| Service | Data / role | Persistence |
 |---|---|---|
-| LibreChat | UI, conversazioni, account, configurazione agenti | MongoDB; volumi per upload, immagini, log e dati locali |
-| LightRAG | Parsing, estrazione di entità/relazioni, indicizzazione e retrieval | Postgres + volumi per input e file di lavoro |
-| n8n | Workflow e credenziali per automazioni | Volume `n8n_data` (SQLite e chiave di cifratura) |
-| Postgres 17 + pgvector | Grafo, vettori, chunk/documenti, cache e stato di indicizzazione | Volume `postgres_data` |
-| MCP | Traduce `knowledge_search` in `POST /query/data` | Nessun database proprio |
-| MongoDB | Archivio applicativo di LibreChat | Volume `mongo_data` |
+| LibreChat | UI, conversations, accounts, agent configuration | MongoDB; volumes for uploads, images, logs, and local data |
+| LightRAG | Parsing, entity/relationship extraction, indexing, and retrieval | Postgres + volumes for inputs and working files |
+| n8n | Automation workflows and credentials | `n8n_data` volume (SQLite and encryption key) |
+| Postgres 17 + pgvector | Graph, vectors, chunks/documents, cache, and indexing status | `postgres_data` volume |
+| MCP | Translates `knowledge_search` to `POST /query/data` | No database of its own |
+| MongoDB | LibreChat application store | `mongo_data` volume |
 
-LightRAG usa `PGKVStorage`, `PGDocStatusStorage`, `PGVectorStorage` e
-`PGTableGraphStorage`. Quest'ultimo salva nodi e archi in tabelle PostgreSQL:
-non servono Neo4j né Apache AGE. `postgres/init.sql` abilita pgvector al primo
-avvio; LightRAG inizializza le proprie tabelle.
+LightRAG uses `PGKVStorage`, `PGDocStatusStorage`, `PGVectorStorage`, and
+`PGTableGraphStorage`. The latter stores nodes and edges in PostgreSQL tables:
+Neo4j and Apache AGE are not needed. `postgres/init.sql` enables pgvector on
+first startup; LightRAG initializes its own tables.
 
-La richiesta segue questo percorso:
+Requests follow this path:
 
-1. Il modello in LibreChat chiama il tool MCP con una domanda autonoma.
-2. MCP chiama LightRAG con modalità `mix`, un budget di contesto e la API key.
-3. LightRAG cerca nel grafo e nei vettori e restituisce chunk, relazioni e fonti.
-4. Il modello in LibreChat riceve quel JSON e formula la risposta finale.
+1. The model in LibreChat calls the MCP tool with a standalone question.
+2. MCP calls LightRAG in `mix` mode, with a context budget and the API key.
+3. LightRAG searches the graph and vectors and returns chunks, relationships,
+   and sources.
+4. The model in LibreChat receives that JSON and writes the final answer.
 
-`/query/data` evita una seconda generazione della risposta finale da parte di
-LightRAG. LightRAG può comunque chiamare un LLM per estrarre keyword della
-domanda, oltre a usarlo durante l'indicizzazione. Anche gli embedding richiedono
-il relativo provider. La ricerca non equivale quindi a zero chiamate API.
+`/query/data` avoids a second final-answer generation by LightRAG. LightRAG may
+still call an LLM to extract query keywords, in addition to using one during
+indexing. Embeddings also require their provider. Searching therefore does not
+mean zero API calls.
 
-## Modelli e provider
+## Models and providers
 
-Sono separati tre ruoli configurabili in `.env`:
+Three roles are configured separately in `.env`:
 
-- `CHAT_*`: modello che conversa in LibreChat e usa MCP.
-- `KNOWLEDGE_*`: modello usato da LightRAG per estrazione e keyword.
-- `EMBEDDING_*`: modello che produce i vettori, con dimensione coerente.
+- `CHAT_*`: the model that chats in LibreChat and uses MCP.
+- `KNOWLEDGE_*`: the model LightRAG uses for extraction and keywords.
+- `EMBEDDING_*`: the model that creates vectors, with a matching dimension.
 
-Gli embedding predefiniti usano `bge-m3` su Ollama nello stack, tramite
-`http://ollama:11434/v1`, con 1024 dimensioni. Ollama non pubblica porte
-sull'host e non modifica l'installazione Ollama già presente sul computer.
-`BAAI/bge-reranker-v2-m3` è invece un reranker: non produce gli embedding
-richiesti da questa configurazione. Il reranking resta disabilitato.
+The default embeddings use `bge-m3` on Ollama in the stack, through
+`http://ollama:11434/v1`, with 1024 dimensions. Ollama does not publish ports
+on the host and does not modify any Ollama installation already on your
+computer. `BAAI/bge-reranker-v2-m3` is a reranker; it does not create the
+embeddings this configuration requires. Reranking remains disabled.
 
-Chat, estrazione e keyword usano ancora endpoint OpenAI: **queste chiamate
-usano API esterne**, possono inviare testi e query ai provider configurati e
-possono avere un costo. Per rendere locali anche questi modelli configura endpoint
-OpenAI-compatible raggiungibili dai container, modelli adatti e chiavi
-eventualmente fittizie se richieste dal server locale.
+Chat, extraction, and keywords still use OpenAI endpoints: **these calls use
+external APIs**, may send text and queries to the configured providers, and
+may incur a cost. To make these models local too, configure OpenAI-compatible
+endpoints reachable from the containers, suitable models, and placeholder keys
+if the local server requires them.
 
-Nel container `localhost` indica il container stesso. Se il provider è un altro
-servizio Docker, usa il suo nome di rete. Per un provider sull'host Linux,
-aggiungi `extra_hosts: ["host.docker.internal:host-gateway"]` ai servizi che lo
-devono contattare; su Docker Desktop il nome è normalmente disponibile.
+Inside a container, `localhost` refers to that container. If the provider is
+another Docker service, use its network name. For a provider on the Linux host,
+add `extra_hosts: ["host.docker.internal:host-gateway"]` to the services that
+need to reach it; on Docker Desktop, the name is normally available.
 
-Non cambiare modello/dimensione degli embedding su un indice già popolato.
-`LIGHTRAG_WORKSPACE=company_bge_m3` seleziona un workspace nuovo; LightRAG
-1.5.7 separa le tabelle vettoriali anche per modello e dimensione. I documenti
-del vecchio workspace `company` non compaiono automaticamente nel nuovo:
-occorre reindicizzare i testi originali. `EMBEDDING_SEND_DIM=false` e
-`EMBEDDING_USE_BASE64=false` rendono le richieste compatibili con Ollama.
+Do not change the embedding model or dimension on an already populated index.
+`LIGHTRAG_WORKSPACE=company_bge_m3` selects a new workspace; LightRAG 1.5.7
+also separates vector tables by model and dimension. Documents from the old
+`company` workspace do not appear automatically in the new one: reindex the
+original texts. `EMBEDDING_SEND_DIM=false` and `EMBEDDING_USE_BASE64=false` make
+requests compatible with Ollama.
 
-### Migrazione e rollback
+### Migration and rollback
 
-Per un'installazione esistente, conserva la vecchia `.env` in un percorso
-ignorato da Git e imposta endpoint, chiave segnaposto, modello, dimensione e
-workspace come in `.env.example`. Ricrea LightRAG dopo aver verificato Ollama:
+For an existing installation, keep the old `.env` in a Git-ignored location
+and set the endpoint, placeholder key, model, dimension, and workspace as in
+`.env.example`. Recreate LightRAG after verifying Ollama:
 
 ```bash
 docker compose up -d ollama
@@ -169,100 +173,105 @@ docker compose up -d lightrag
 docker compose exec mcp python smoke.py
 ```
 
-Carica un piccolo documento e verifica una ricerca prima della reindicizzazione
-completa. La configurazione CPU non richiede una GPU; i tempi di indicizzazione
-dipendono da CPU, RAM e lunghezza dei documenti.
+Upload a small document and verify a search before reindexing everything.
+CPU configuration does not require a GPU; indexing time depends on CPU, RAM,
+and document length.
 
-Per tornare al vecchio indice, ripristina endpoint/chiave/modello/dimensione
-precedenti e imposta `LIGHTRAG_WORKSPACE=company`, poi esegui
-`docker compose up -d lightrag`. La vecchia `.env` potrebbe non contenere il
-workspace: aggiungilo esplicitamente. Mantieni i volumi; non usare `down -v`.
-La migrazione su questa macchina salva la configurazione precedente in
-`backups/pre-ollama.env` e i testi originali in `backups/company-documents.json`;
-entrambi restano ignorati da Git e possono contenere dati riservati.
+To return to the old index, restore the previous endpoint/key/model/dimension
+and set `LIGHTRAG_WORKSPACE=company`, then run
+`docker compose up -d lightrag`. The old `.env` may not contain the workspace;
+add it explicitly. Keep the volumes; do not use `down -v`. The migration on
+this machine saves the previous configuration to `backups/pre-ollama.env` and
+the original texts to `backups/company-documents.json`; both remain Git-ignored
+and may contain confidential data.
 
-## Aggiornamenti e scrittura
+## Updates and writing
 
-Caricamenti, rimozioni e modifiche amministrative si fanno in LightRAG.
-MCP espone soltanto ricerca: l'LLM di LibreChat non può aggiungere o cancellare
-fatti. Non ci sono workflow preconfigurati per Drive, email o CRM né
-sincronizzazioni schedulate; è incluso il workflow manuale per importare pagine
-web descritto nella [guida n8n](n8n/README.md).
+Uploads, removals, and administrative changes are managed in LightRAG. MCP
+exposes search only: the LibreChat LLM cannot add or delete facts. There are no
+preconfigured email or CRM workflows, and no scheduled synchronizations.
+The repository includes a manual workflow for importing web pages and a
+workflow for importing exported NotebookLM Docs through Google Drive, described in the
+[n8n guide](n8n/README.md).
 
-Il workspace `company` e la chiave MCP sono condivisi: tutti gli utenti a cui
-assegni il tool possono interrogare la stessa knowledge base. Non è una
-configurazione con autorizzazioni per documento o isolamento per cliente.
-Le credenziali dei database sono quelle inizializzate al primo avvio: cambiare
-solo `.env` dopo la creazione dei volumi non cambia le password nei database.
+The configured `LIGHTRAG_WORKSPACE` (default `company_bge_m3`) is shared, and
+so is the MCP key: all users assigned the tool can query the same knowledge
+base. This setup does not provide per-document permissions or customer
+isolation. Database credentials
+are the ones initialized on first startup: changing `.env` alone after the
+volumes have been created does not change the database passwords.
 
-## Verifica del collegamento
+## Verify the connection
 
-Senza chiamate al modello, verifica health e protocollo MCP:
+Without model calls, check health and the MCP protocol:
 
 ```bash
 docker compose exec mcp python smoke.py
 ```
 
-Dopo aver indicizzato il demo, verifica il recupero reale delle fonti (può usare
-API LLM/embedding):
+After indexing the demo, verify actual source retrieval (this may use LLM and
+embedding APIs):
 
 ```bash
-docker compose exec mcp python smoke.py "Chi gestisce il contratto Acme Demo e quando scade?"
+docker compose exec mcp python smoke.py "Who manages the Acme Demo contract, and when does it expire?"
 ```
 
-Il risultato deve contenere le evidenze del demo. Una risposta HTTP riuscita con
-dati vuoti non dimostra che l'indicizzazione sia completa. Il test MCP interno
-non verifica la selezione del tool in LibreChat: completa anche il test dalla UI.
+The result should contain the demo evidence. A successful HTTP response with
+empty data does not prove indexing is complete. The internal MCP test does not
+verify tool selection in LibreChat: also complete the UI test.
 
-Se qualcosa non funziona:
+If something does not work:
 
-| Sintomo | Controllo |
+| Symptom | Check |
 |---|---|
-| LightRAG non diventa healthy | `docker compose logs --tail=150 postgres lightrag`; controlla chiavi e storage |
-| Errore provider 401/403 | Chiave API del ruolo corretto e accesso al modello |
-| MCP 401 | Stesso `MCP_TOKEN` in LibreChat e MCP; ricrea i due servizi dopo modifiche |
-| MCP 421 | Host del bridge diverso da `mcp:8000`; aggiorna la allowlist in `mcp/server.py` |
-| LibreChat blocca l'URL interno | `mcpSettings.allowedDomains` deve includere `http://mcp:8000` |
-| Nessuna evidenza | Documento processed, workspace corretto, chiamata al tool effettivamente eseguita |
-| Registrazione disabilitata | Riabilita temporaneamente `ALLOW_REGISTRATION` e ricrea LibreChat |
+| LightRAG does not become healthy | `docker compose logs --tail=150 postgres lightrag`; check keys and storage |
+| Provider error 401/403 | Correct role's API key and model access |
+| MCP 401 | Same `MCP_TOKEN` in LibreChat and MCP; recreate both services after changes |
+| MCP 421 | Bridge host differs from `mcp:8000`; update the allowlist in `mcp/server.py` |
+| LibreChat blocks the internal URL | `mcpSettings.allowedDomains` must include `http://mcp:8000` |
+| No evidence | Document is processed, workspace is correct, and the tool call actually ran |
+| Registration is disabled | Temporarily re-enable `ALLOW_REGISTRATION` and recreate LibreChat |
 
-## Persistenza e backup
+## Persistence and backups
 
-`docker compose down` arresta lo stack conservando i volumi. Non aggiungere
-`-v` se vuoi mantenere i dati: elimina i volumi del progetto.
+`docker compose down` stops the stack and keeps the volumes. Do not add `-v` if
+you want to keep the data: it deletes the project volumes.
 
-Per un backup completo conserva `.env` in modo sicuro, i file di configurazione
-e tutti i volumi elencati in `compose.yaml`. Per ottenere dump dei database
-coerenti con i file, ferma prima le applicazioni:
+For a complete backup, safely retain `.env`, the configuration files, and all
+volumes listed in `compose.yaml`. For database dumps consistent with the files,
+stop the applications first:
 
 ```bash
 mkdir -p backups
 docker compose stop librechat mcp lightrag n8n
 docker compose exec -T postgres pg_dump -U lightrag -d lightrag -Fc > backups/lightrag.dump
 docker compose exec -T mongodb sh -c 'mongodump --username "$MONGO_INITDB_ROOT_USERNAME" --password "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --archive --gzip' > backups/librechat.archive.gz
-# Salva anche i volumi dei file con il tuo sistema di backup Docker.
+# Also save the file volumes with your Docker backup system.
 docker compose start lightrag mcp librechat n8n
 ```
 
-## Versioni e verifiche effettuate
+## Versions and verification
 
-Preparato il 3 ottobre 2026. Le immagini di LightRAG v1.5.7, LibreChat,
-MongoDB 8.0.20 e pgvector/Postgres sono fissate al digest del manifest verificato.
-L'immagine n8n è fissata alla versione `2.0.0`; il digest non è stato verificato
-in questo ambiente.
-LibreChat usa il canale ufficiale `librechat-dev` del Compose upstream, congelato
-al digest incluso: non viene presentato come una release stabile. Il bridge usa
-MCP Python SDK 1.26.0; le dipendenze Python risolte sono fissate nel lock file.
+Prepared October 3, 2026. LightRAG v1.5.7, LibreChat, MongoDB 8.0.20, and
+pgvector/Postgres images are pinned to the verified manifest digest. The n8n
+image is pinned to version `2.0.0`; its digest was not verified in this
+environment.
+LibreChat uses the official `librechat-dev` channel from the upstream Compose
+file, pinned to the included digest; it is not presented as a stable release.
+The bridge uses MCP Python SDK 1.26.0; resolved Python dependencies are pinned
+in the lock file.
 
-Sono stati verificati il file Compose con il JSON Schema ufficiale, i riferimenti delle immagini e il
-bridge con test di protocollo MCP, autenticazione, limiti degli argomenti,
-conservazione delle fonti e gestione degli errori. I test usano un backend
-LightRAG simulato. Il comando `docker compose config` va eseguito sul tuo host;
-qui la verifica Compose è statica. **Lo stack completo non è stato avviato qui**, perché questo
-ambiente non dispone di un motore Docker; le chiamate al tuo provider e il
-percorso completo dalla UI richiedono la verifica sul tuo computer.
+The Compose file was checked against the official JSON Schema, image
+references were checked, and the bridge was tested for MCP protocol,
+authentication, argument limits, source preservation, and error handling. The
+tests use a mocked LightRAG backend. The initial verification used static
+Compose validation; later local verification ran `docker compose config`,
+started the stack, and checked sample retrieval with Ollama embeddings, as
+recorded in [the implementation notes](tasks/plan.md). The n8n workflows have
+offline tests; their full external-provider ingestion paths still need live
+verification with the required credentials.
 
-Per rieseguire i test del bridge senza Docker:
+To rerun the bridge tests without Docker:
 
 ```bash
 python3 -m venv .venv
@@ -270,17 +279,17 @@ python3 -m venv .venv
 .venv/bin/python -m unittest discover -s mcp/tests -v
 ```
 
-## Riferimenti ufficiali
+## Official references
 
-- [LightRAG API e storage, v1.5.7](https://github.com/HKUDS/LightRAG/blob/v1.5.7/docs/LightRAG-API-Server.md)
-- [LightRAG variabili, v1.5.7](https://github.com/HKUDS/LightRAG/blob/v1.5.7/env.example)
+- [LightRAG API and storage, v1.5.7](https://github.com/HKUDS/LightRAG/blob/v1.5.7/docs/LightRAG-API-Server.md)
+- [LightRAG environment variables, v1.5.7](https://github.com/HKUDS/LightRAG/blob/v1.5.7/env.example)
 - [LightRAG query API, v1.5.7](https://github.com/HKUDS/LightRAG/blob/v1.5.7/lightrag/api/routers/query_routes.py)
-- [LibreChat Compose upstream](https://github.com/LibreChat-AI/LibreChat/blob/main/docker-compose.yml)
+- [LibreChat upstream Compose file](https://github.com/LibreChat-AI/LibreChat/blob/main/docker-compose.yml)
 - [LibreChat MCP](https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/mcp_servers)
-- [LibreChat restrizioni MCP](https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/mcp_settings)
-- [n8n self-hosting con Docker](https://docs.n8n.io/hosting/installation/docker/)
+- [LibreChat MCP restrictions](https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/mcp_settings)
+- [n8n self-hosting with Docker](https://docs.n8n.io/hosting/installation/docker/)
 - [MCP Python SDK 1.26.0](https://github.com/modelcontextprotocol/python-sdk/tree/v1.26.0)
 
-Questo bundle contiene configurazione e bridge; i progetti upstream mantengono
-le proprie licenze. Per esporlo su Internet servono un deployment con HTTPS,
-domini e controllo degli accessi configurati per il tuo ambiente.
+This bundle contains configuration and the bridge; upstream projects retain
+their own licenses. Exposing it to the Internet requires a deployment with
+HTTPS, domains, and access controls configured for your environment.

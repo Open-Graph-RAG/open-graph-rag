@@ -1,51 +1,51 @@
-# Importare note di NotebookLM in LightRAG
+# Import NotebookLM notes into LightRAG
 
-Il workflow `workflows/google-notebooks-to-lightrag.json` scarica come testo
-semplice un Google Doc esportato da NotebookLM e lo mette in coda a LightRAG.
-La richiesta contiene l'ID del Google Doc; n8n lo legge usando OAuth e non
-richiede di copiare il testo nel payload. NotebookLM esporta le note in Google
-Docs. Il workflow rimane inattivo dopo l'importazione.
+The `workflows/google-notebooks-to-lightrag.json` workflow downloads a Google
+Doc exported from NotebookLM as plain text and queues it in LightRAG. The
+request includes the Google Doc ID; n8n reads the document through OAuth, so
+you do not need to copy its text into the payload. NotebookLM can export notes
+to Google Docs. The workflow remains inactive after import.
 
-Questo flusso non legge direttamente i notebook privati di NotebookLM: si basa
-sull'esportazione supportata in Google Docs e sull'API Google Drive `files.export`.
+This workflow does not read private NotebookLM notebooks directly. It uses the
+supported Google Docs export and the Google Drive API `files.export` endpoint.
 
-## Configurazione
+## Setup
 
-1. In NotebookLM, usa **Esporta in Google Docs** per le note da importare. In
-   n8n, importa `workflows/google-notebooks-to-lightrag.json` dalla sezione
-   **Workflows**.
-2. Collega al nodo **Authenticated NotebookLM webhook** la credenziale **Header
-   Auth** chiamata `Notebook ingest webhook auth`, con header `X-Ingest-Token` e
-   un token casuale scelto da te.
-3. Crea o collega al nodo **Export Google Doc as text** una credenziale **Google
-   Drive OAuth2 API** autorizzata a leggere il Google Doc esportato. L'account
-   Google autorizzato deve poter accedere al documento.
-4. Collega al nodo **Queue exported text in LightRAG** la credenziale **Header
-   Auth** `LightRAG X-API-Key`, con header `X-API-Key` e valore
-   `LIGHTRAG_API_KEY` dal file `.env`.
-5. Salva e attiva/pubblica il workflow. L'URL di produzione è
+1. In NotebookLM, use **Export to Google Docs** for the notes you want to
+   import. In n8n, import `workflows/google-notebooks-to-lightrag.json` from the
+   **Workflows** section.
+2. Assign a **Header Auth** credential named `Notebook ingest webhook auth`
+   to the **Authenticated NotebookLM webhook** node. Set the header to
+   `X-Ingest-Token` and choose a random token.
+3. Create or assign a **Google Drive OAuth2 API** credential to the **Export
+   Google Doc as text** node. The authorized Google account must have access to
+   the exported document.
+4. Assign the **Header Auth** credential `LightRAG X-API-Key` to the **Queue
+   exported text in LightRAG** node. Set the header to `X-API-Key` and its value
+   to `LIGHTRAG_API_KEY` from `.env`.
+5. Save and activate/publish the workflow. The production URL is
    `http://localhost:5678/webhook/google-notebooks-to-lightrag`.
 
-Le credenziali sono conservate nel volume `n8n_data`, non nel JSON del workflow.
-I riferimenti segnaposto del JSON importato vanno ricollegati in n8n.
+Credentials are stored in the `n8n_data` volume, not in the workflow JSON.
+Reconnect the placeholder credential references in the imported JSON.
 
-## Importare un documento
+## Import a document
 
-Invia il `driveFileId` del Google Doc. Puoi ricavarlo dall'URL del documento,
-tra `/d/` e `/edit`. `notebook` è un'etichetta facoltativa; `file_source` viene
-creato dal workflow usando l'URL stabile del Google Doc.
+Send the Google Doc's `driveFileId`. You can get it from the document URL: it
+is the part between `/d/` and `/edit`. `notebook` is an optional label;
+`file_source` is generated from the stable Google Doc URL.
 
 ```bash
 curl -X POST http://localhost:5678/webhook/google-notebooks-to-lightrag \
   -H 'Content-Type: application/json' \
-  -H 'X-Ingest-Token: IL_TUO_TOKEN' \
-  -d '{"driveFileId":"ID_DOCUMENTO","notebook":"Appunti di ricerca"}'
+  -H 'X-Ingest-Token: YOUR_TOKEN' \
+  -d '{"driveFileId":"DOCUMENT_ID","notebook":"Research notes"}'
 ```
 
-L'ID deve contenere da 10 a 200 caratteri alfanumerici, trattini o underscore.
-Gli export vuoti o oltre 500000 caratteri vengono rifiutati. Una risposta `202`
-significa che LightRAG ha accettato il documento per elaborarlo in background;
-non significa che sia già indicizzabile. La risposta include `track_id`, da
-controllare con `GET http://localhost:9621/documents/track_status/{track_id}`
-usando l'header `X-API-Key`. Un HTTP `409` per una sorgente già presente viene
-restituito come `already_present`; gli altri errori fanno fallire l'esecuzione.
+The ID must contain 10 to 200 alphanumeric characters, hyphens, or
+underscores. Empty exports and exports over 500000 characters are rejected. An
+HTTP `202` means LightRAG accepted the document for background processing; it
+may not be searchable yet. The response includes `track_id`. Check it with
+`GET http://localhost:9621/documents/track_status/{track_id}`, using the
+`X-API-Key` header. An HTTP `409` for an existing source is returned as
+`already_present`; other errors fail the execution.

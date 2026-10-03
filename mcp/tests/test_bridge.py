@@ -17,7 +17,7 @@ import server
 class BridgeTests(unittest.IsolatedAsyncioTestCase):
     async def test_upstream_contract_and_references(self):
         evidence = {"status": "success", "message": "ok", "data": {
-            "chunks": [{"content": "Responsabile Giulia", "reference_id": "1"}],
+            "chunks": [{"content": "Manager Giulia", "reference_id": "1"}],
             "references": [{"reference_id": "1", "file_path": "demo-acme.txt"}],
         }, "metadata": {"mode": "mix"}}
 
@@ -32,7 +32,7 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
 
         client = httpx.AsyncClient(transport=httpx.MockTransport(upstream))
         with patch.object(server.httpx, "AsyncClient", return_value=client):
-            result = await server.knowledge_search("Chi gestisce Acme?")
+            result = await server.knowledge_search("Who manages Acme?")
         self.assertEqual(result, evidence)
 
     async def test_errors_do_not_leak_upstream_body(self):
@@ -40,7 +40,7 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
             lambda request: httpx.Response(403, text="PRIVATE INTERNAL DETAIL")))
         with patch.object(server.httpx, "AsyncClient", return_value=client):
             with self.assertRaisesRegex(ValueError, "LightRAG HTTP 403") as raised:
-                await server.knowledge_search("Una domanda valida")
+                await server.knowledge_search("A valid question")
         self.assertNotIn("PRIVATE", str(raised.exception))
 
     async def test_mcp_auth_initialize_tools_and_validation(self):
@@ -75,7 +75,7 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
                 with patch.object(server.httpx, "AsyncClient", return_value=backend):
                     response = await client.post("/mcp", json={
                         "jsonrpc": "2.0", "id": 5, "method": "tools/call",
-                        "params": {"name": "knowledge_search", "arguments": {"query": "Chi gestisce Acme?"}},
+                        "params": {"name": "knowledge_search", "arguments": {"query": "Who manages Acme?"}},
                     })
                 result = response.json()["result"]
                 self.assertFalse(result.get("isError", False))

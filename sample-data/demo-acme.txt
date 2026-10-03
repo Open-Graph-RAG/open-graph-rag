@@ -1,6 +1,6 @@
-DOCUMENTO DIMOSTRATIVO: dati inventati, non usare come dati aziendali reali.
+DEMO DOCUMENT: fictional data; do not use as real company information.
 
-Il cliente Acme Demo ha sottoscritto il contratto DEMO-001 per il prodotto
-Atlas Demo. Il contratto è valido dal 1 gennaio 2026 al 31 dicembre 2026.
-La responsabile del contratto è Giulia Bianchi Demo.
-Il progetto collegato si chiama Migrazione Aurora Demo.
+The customer Acme Demo signed contract DEMO-001 for the product
+Atlas Demo. The contract is valid from January 1, 2026 to December 31, 2026.
+The contract manager is Giulia Bianchi Demo.
+The related project is called Aurora Migration Demo.

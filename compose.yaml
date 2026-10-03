@@ -94,7 +94,7 @@ services:
       RERANK_BINDING: "null"
       MAX_ASYNC_LLM: "2"
       MAX_PARALLEL_INSERT: "2"
-      SUMMARY_LANGUAGE: Italian
+      SUMMARY_LANGUAGE: English
     volumes:
       - lightrag_storage:/app/data/rag_storage
       - lightrag_inputs:/app/data/inputs

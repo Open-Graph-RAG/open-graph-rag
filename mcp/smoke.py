@@ -30,7 +30,7 @@ async def main():
                 print(result.model_dump_json(indent=2))
                 if result.isError:
                     raise SystemExit(1)
-                print("Verifica che i risultati contengano i documenti caricati.")
+                print("Check that the results contain the uploaded documents.")
 
 
 if __name__ == "__main__":
