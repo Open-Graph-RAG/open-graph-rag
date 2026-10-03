@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/logo.png" alt="Open Graph RAG logo: a chat bubble surrounding a document and connected knowledge graph" width="240">
+</p>
+
 # LibreChat + LightRAG + n8n + Postgres + MCP
 
 A shared knowledge base stack. LibreChat provides the chat interface; LightRAG
