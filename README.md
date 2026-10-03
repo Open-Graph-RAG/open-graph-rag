@@ -52,7 +52,7 @@ if another application uses them.
 ### 2. Clone and generate configuration
 
 ```bash
-git clone https://github.com/chiora93/open-graph-rag.git
+git clone https://github.com/Open-Graph-RAG/open-graph-rag.git
 cd open-graph-rag
 python3 scripts/init_env.py
 ```
