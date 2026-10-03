@@ -10,6 +10,26 @@ n8n provides an interface for creating automations that call LightRAG.
 MongoDB is included because LibreChat requires it for users and conversations;
 Postgres does not replace it.
 
+## UI branding
+
+Compose mounts the repository logo into LibreChat's login logo and browser
+favicons, and LightRAG's workspace welcome logo (`http://localhost:9621/workspace/`
+with the default port) and favicon. The mounts are read-only.
+`docs/assets/logo.svg` embeds the PNG so the applications can keep their existing
+SVG asset paths. This customizes the static logos; other built-in product icons
+and names remain as provided by the applications.
+
+Apply branding changes to an existing stack with:
+
+```bash
+docker compose up -d --no-deps librechat lightrag
+```
+
+Hard-refresh the browser if it has cached the previous images. LightRAG's logo
+asset filename is specific to the pinned image in `compose.yaml`; check the
+`/app/lightrag/api/webui/assets/logo-*.svg` path when upgrading that image.
+If replacing the PNG, regenerate the SVG wrapper with the same image.
+
 ## Getting started
 
 You need Docker Engine/Docker Desktop with Compose v2 and Python 3 on your

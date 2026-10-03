@@ -98,6 +98,9 @@ services:
     volumes:
       - lightrag_storage:/app/data/rag_storage
       - lightrag_inputs:/app/data/inputs
+      # Asset filename belongs to the pinned LightRAG image; recheck on upgrades.
+      - ./docs/assets/logo.svg:/app/lightrag/api/webui/assets/logo-C8hNYZ_i.svg:ro
+      - ./docs/assets/logo.png:/app/lightrag/api/webui/favicon.png:ro
     networks: [knowledge_db, knowledge_api]
     depends_on:
       ollama-init:
@@ -176,6 +179,12 @@ services:
       LIBRECHAT_TEMP_CREDENTIALS_PATH: /app/data/.env.temp
     volumes:
       - ./librechat.yaml:/app/librechat.yaml:ro
+      - ./docs/assets/logo.svg:/app/client/public/assets/logo.svg:ro
+      - ./docs/assets/logo.svg:/app/client/dist/assets/logo.svg:ro
+      - ./docs/assets/logo.png:/app/client/public/assets/favicon-16x16.png:ro
+      - ./docs/assets/logo.png:/app/client/public/assets/favicon-32x32.png:ro
+      - ./docs/assets/logo.png:/app/client/dist/assets/favicon-16x16.png:ro
+      - ./docs/assets/logo.png:/app/client/dist/assets/favicon-32x32.png:ro
       - librechat_data:/app/data
       - librechat_uploads:/app/uploads
       - librechat_images:/app/client/public/images
