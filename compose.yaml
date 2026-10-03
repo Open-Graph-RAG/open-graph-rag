@@ -1,0 +1,167 @@
+name: librechat-lightrag
+
+services:
+  mongodb:
+    image: mongo:8.0.20@sha256:098862b1339f031900ca66cf8fef799e616d6324fa41b9a263f2ec899552c1ef
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: librechat
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?Run python3 scripts/init_env.py}
+    volumes:
+      - mongo_data:/data/db
+    networks: [chat_db]
+    healthcheck:
+      test: [CMD-SHELL, 'mongosh --quiet --username "$$MONGO_INITDB_ROOT_USERNAME" --password "$$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval "quit(db.adminCommand({ping:1}).ok ? 0 : 1)"']
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  postgres:
+    image: pgvector/pgvector:0.8.0-pg17@sha256:40b404964359299eefdd5f8518facf1886c562848cf4de13b6eaf91cb70c2b87
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lightrag
+      POSTGRES_USER: lightrag
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run python3 scripts/init_env.py}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/01-vector.sql:ro
+    networks: [knowledge_db]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  lightrag:
+    image: ghcr.io/hkuds/lightrag:v1.5.7@sha256:5bdbd524931b011df246fe20888d110cef691e6804c12cde636a2b746d7de27e
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${LIGHTRAG_PORT:-9621}:9621"
+    environment:
+      HOST: 0.0.0.0
+      PORT: "9621"
+      WORKERS: "1"
+      WORKING_DIR: /app/data/rag_storage
+      INPUT_DIR: /app/data/inputs
+      WORKSPACE: company
+      LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY:?Run python3 scripts/init_env.py}
+      WHITELIST_PATHS: /health
+      LIGHTRAG_KV_STORAGE: PGKVStorage
+      LIGHTRAG_DOC_STATUS_STORAGE: PGDocStatusStorage
+      LIGHTRAG_VECTOR_STORAGE: PGVectorStorage
+      LIGHTRAG_GRAPH_STORAGE: PGTableGraphStorage
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: lightrag
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run python3 scripts/init_env.py}
+      POSTGRES_DATABASE: lightrag
+      POSTGRES_MAX_CONNECTIONS: "10"
+      LLM_BINDING: openai
+      LLM_BINDING_HOST: ${KNOWLEDGE_API_BASE:-https://api.openai.com/v1}
+      LLM_BINDING_API_KEY: ${KNOWLEDGE_API_KEY:?Set your provider API key in .env}
+      LLM_MODEL: ${KNOWLEDGE_MODEL:-gpt-4.1-mini}
+      EMBEDDING_BINDING: openai
+      EMBEDDING_BINDING_HOST: ${EMBEDDING_API_BASE:-https://api.openai.com/v1}
+      EMBEDDING_BINDING_API_KEY: ${EMBEDDING_API_KEY:?Set your embedding API key in .env}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      EMBEDDING_DIM: ${EMBEDDING_DIM:-1536}
+      EMBEDDING_SEND_DIM: "false"
+      RERANK_BINDING: "null"
+      MAX_ASYNC_LLM: "2"
+      MAX_PARALLEL_INSERT: "2"
+      SUMMARY_LANGUAGE: Italian
+    volumes:
+      - lightrag_storage:/app/data/rag_storage
+      - lightrag_inputs:/app/data/inputs
+    networks: [knowledge_db, knowledge_api]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9621/health', timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      retries: 30
+      start_period: 90s
+
+  mcp:
+    build: ./mcp
+    restart: unless-stopped
+    environment:
+      LIGHTRAG_URL: http://lightrag:9621
+      LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY:?Run python3 scripts/init_env.py}
+      MCP_TOKEN: ${MCP_TOKEN:?Run python3 scripts/init_env.py}
+    networks: [knowledge_api, tools_api]
+    depends_on:
+      lightrag:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+
+  librechat:
+    # Official development channel, frozen to the verified manifest below.
+    image: registry.librechat.ai/librechat-ai/librechat-dev:latest@sha256:b278c620834c5653801030091072cad1974b47d0fc15a5009ed1a7d6e4c4f0d7
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${LIBRECHAT_PORT:-3080}:3080"
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3080"
+      NODE_ENV: production
+      MONGO_URI: mongodb://librechat:${MONGO_PASSWORD:?Run python3 scripts/init_env.py}@mongodb:27017/LibreChat?authSource=admin
+      CONFIG_PATH: /app/librechat.yaml
+      DOMAIN_CLIENT: http://localhost:${LIBRECHAT_PORT:-3080}
+      DOMAIN_SERVER: http://localhost:${LIBRECHAT_PORT:-3080}
+      ENDPOINTS: openAI,agents
+      OPENAI_API_KEY: ${CHAT_API_KEY:?Set your chat API key in .env}
+      OPENAI_REVERSE_PROXY: ${CHAT_API_BASE:-https://api.openai.com/v1}
+      OPENAI_MODELS: ${CHAT_MODELS:-gpt-4.1-mini}
+      CREDS_KEY: ${CREDS_KEY:?Run python3 scripts/init_env.py}
+      CREDS_IV: ${CREDS_IV:?Run python3 scripts/init_env.py}
+      JWT_SECRET: ${JWT_SECRET:?Run python3 scripts/init_env.py}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Run python3 scripts/init_env.py}
+      MCP_TOKEN: ${MCP_TOKEN:?Run python3 scripts/init_env.py}
+      ALLOW_EMAIL_LOGIN: "true"
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
+      ALLOW_SOCIAL_LOGIN: "false"
+      ALLOW_SOCIAL_REGISTRATION: "false"
+      SEARCH: "false"
+      LIBRECHAT_TEMP_CREDENTIALS_PATH: /app/data/.env.temp
+    volumes:
+      - ./librechat.yaml:/app/librechat.yaml:ro
+      - librechat_data:/app/data
+      - librechat_uploads:/app/uploads
+      - librechat_images:/app/client/public/images
+      - librechat_logs:/app/logs
+    networks: [chat_db, tools_api]
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      mcp:
+        condition: service_healthy
+
+networks:
+  chat_db:
+    internal: true
+  knowledge_db:
+    internal: true
+  knowledge_api:
+  tools_api:
+
+volumes:
+  mongo_data:
+  postgres_data:
+  lightrag_storage:
+  lightrag_inputs:
+  librechat_data:
+  librechat_uploads:
+  librechat_images:
+  librechat_logs:

@@ -1,0 +1,6 @@
+DOCUMENTO DIMOSTRATIVO: dati inventati, non usare come dati aziendali reali.
+
+Il cliente Acme Demo ha sottoscritto il contratto DEMO-001 per il prodotto
+Atlas Demo. Il contratto è valido dal 1 gennaio 2026 al 31 dicembre 2026.
+La responsabile del contratto è Giulia Bianchi Demo.
+Il progetto collegato si chiama Migrazione Aurora Demo.
