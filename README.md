@@ -1,7 +1,8 @@
-# LibreChat + LightRAG + Postgres + MCP
+# LibreChat + LightRAG + n8n + Postgres + MCP
 
 Stack locale per una knowledge base condivisa. LibreChat è la chat; LightRAG
 indicizza documenti e recupera evidenze; il bridge MCP collega i due sistemi.
+n8n offre un'interfaccia per creare automazioni che chiamano LightRAG.
 MongoDB è incluso perché LibreChat lo richiede per utenti e conversazioni:
 Postgres non lo sostituisce.
 
@@ -26,7 +27,7 @@ accesso a quelli indicati. Non condividere `.env`.
 docker compose config --quiet
 docker compose up -d --build
 docker compose ps
-docker compose logs --tail=100 lightrag mcp librechat
+docker compose logs --tail=100 lightrag mcp librechat n8n
 ```
 
 Il primo avvio scarica immagini e crea il database. LightRAG deve diventare
@@ -36,12 +37,13 @@ healthy prima dell'avvio di MCP e LibreChat.
 |---|---|---|
 | LibreChat | http://localhost:3080 | Registra il tuo primo account |
 | LightRAG | http://localhost:9621/webui | Inserisci il valore di `LIGHTRAG_API_KEY` dalla tua `.env` |
+| n8n | http://localhost:5678 | Crea l'account proprietario al primo accesso |
 
 Le porte sono pubblicate solo su `127.0.0.1`. Se avvii lo stack su un server
 remoto, usa un tunnel SSH per provarlo dal tuo computer:
 
 ```bash
-ssh -L 3080:127.0.0.1:3080 -L 9621:127.0.0.1:9621 utente@server
+ssh -L 3080:127.0.0.1:3080 -L 9621:127.0.0.1:9621 -L 5678:127.0.0.1:5678 utente@server
 ```
 
 Dopo avere creato gli account necessari, puoi impostare
@@ -74,12 +76,26 @@ LibreChat **non lo aggiunge automaticamente a LightRAG**. Questo stack non
 include il RAG API separato di LibreChat e disabilita il relativo file search.
 Meilisearch è omesso e la ricerca storica delle conversazioni è disabilitata.
 
+## Automazioni con n8n
+
+Apri `http://localhost:5678` e crea l'account proprietario. n8n salva workflow,
+credenziali e la chiave di cifratura nel volume `n8n_data`; conserva questo
+volume nei backup. Da un nodo HTTP Request puoi raggiungere LightRAG a
+`http://lightrag:9621` e autenticarti con il valore di `LIGHTRAG_API_KEY` della
+tua `.env`. Inserisci la chiave nelle credenziali di n8n, senza scriverla nei
+workflow esportati. n8n non crea workflow o sincronizzazioni automaticamente.
+
+La UI è accessibile solo dal computer che esegue Docker. Anche i webhook
+ricevono richieste solo da lì finché non configuri un reverse proxy HTTPS e
+l'URL pubblico di n8n. `N8N_PORT` e `N8N_TIMEZONE` sono configurabili in `.env`.
+
 ## Chi salva cosa
 
 | Servizio | Dati / ruolo | Persistenza |
 |---|---|---|
 | LibreChat | UI, conversazioni, account, configurazione agenti | MongoDB; volumi per upload, immagini, log e dati locali |
 | LightRAG | Parsing, estrazione di entità/relazioni, indicizzazione e retrieval | Postgres + volumi per input e file di lavoro |
+| n8n | Workflow e credenziali per automazioni | Volume `n8n_data` (SQLite e chiave di cifratura) |
 | Postgres 17 + pgvector | Grafo, vettori, chunk/documenti, cache e stato di indicizzazione | Volume `postgres_data` |
 | MCP | Traduce `knowledge_search` in `POST /query/data` | Nessun database proprio |
 | MongoDB | Archivio applicativo di LibreChat | Volume `mongo_data` |
@@ -130,8 +146,8 @@ di richiedere un parametro dimensions a provider che non lo supportano.
 
 Caricamenti, rimozioni e modifiche amministrative si fanno in LightRAG.
 MCP espone soltanto ricerca: l'LLM di LibreChat non può aggiungere o cancellare
-fatti. Non ci sono connettori Drive, email o CRM e non c'è sincronizzazione
-schedulata; per averla occorre una pipeline di ingestion dedicata.
+fatti. Non ci sono workflow preconfigurati per Drive, email o CRM e non c'è
+sincronizzazione schedulata: puoi crearli in n8n.
 
 Il workspace `company` e la chiave MCP sono condivisi: tutti gli utenti a cui
 assegni il tool possono interrogare la stessa knowledge base. Non è una
@@ -181,17 +197,19 @@ coerenti con i file, ferma prima le applicazioni:
 
 ```bash
 mkdir -p backups
-docker compose stop librechat mcp lightrag
+docker compose stop librechat mcp lightrag n8n
 docker compose exec -T postgres pg_dump -U lightrag -d lightrag -Fc > backups/lightrag.dump
 docker compose exec -T mongodb sh -c 'mongodump --username "$MONGO_INITDB_ROOT_USERNAME" --password "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --archive --gzip' > backups/librechat.archive.gz
 # Salva anche i volumi dei file con il tuo sistema di backup Docker.
-docker compose start lightrag mcp librechat
+docker compose start lightrag mcp librechat n8n
 ```
 
 ## Versioni e verifiche effettuate
 
 Preparato il 3 ottobre 2026. Le immagini di LightRAG v1.5.7, LibreChat,
 MongoDB 8.0.20 e pgvector/Postgres sono fissate al digest del manifest verificato.
+L'immagine n8n è fissata alla versione `2.0.0`; il digest non è stato verificato
+in questo ambiente.
 LibreChat usa il canale ufficiale `librechat-dev` del Compose upstream, congelato
 al digest incluso: non viene presentato come una release stabile. Il bridge usa
 MCP Python SDK 1.26.0; le dipendenze Python risolte sono fissate nel lock file.
@@ -220,6 +238,7 @@ python3 -m venv .venv
 - [LibreChat Compose upstream](https://github.com/LibreChat-AI/LibreChat/blob/main/docker-compose.yml)
 - [LibreChat MCP](https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/mcp_servers)
 - [LibreChat restrizioni MCP](https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/mcp_settings)
+- [n8n self-hosting con Docker](https://docs.n8n.io/hosting/installation/docker/)
 - [MCP Python SDK 1.26.0](https://github.com/modelcontextprotocol/python-sdk/tree/v1.26.0)
 
 Questo bundle contiene configurazione e bridge; i progetti upstream mantengono

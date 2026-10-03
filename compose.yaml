@@ -106,6 +106,19 @@ services:
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
 
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:2.0.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${N8N_PORT:-5678}:5678"
+    environment:
+      GENERIC_TIMEZONE: ${N8N_TIMEZONE:-Europe/Rome}
+      TZ: ${N8N_TIMEZONE:-Europe/Rome}
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks: [knowledge_api]
+
   librechat:
     # Official development channel, frozen to the verified manifest below.
     image: registry.librechat.ai/librechat-ai/librechat-dev:latest@sha256:b278c620834c5653801030091072cad1974b47d0fc15a5009ed1a7d6e4c4f0d7
@@ -165,3 +178,4 @@ volumes:
   librechat_uploads:
   librechat_images:
   librechat_logs:
+  n8n_data:
