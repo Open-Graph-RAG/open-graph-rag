@@ -4,6 +4,9 @@
 
 # Open Graph RAG
 
+The [Activepieces migration and recovery plan](docs/activepieces-migration.md)
+tracks replacement acceptance and cutover. Keep n8n running until its gates pass.
+
 LibreChat + LightRAG + n8n + PostgreSQL + MCP
 
 A shared knowledge base stack. LibreChat provides the chat interface; LightRAG
