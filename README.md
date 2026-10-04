@@ -12,6 +12,51 @@ n8n provides an interface for creating automations that call LightRAG.
 MongoDB is included because LibreChat requires it for users and conversations;
 Postgres does not replace it.
 
+## System architecture
+
+```mermaid
+flowchart TB
+  user["User / browser"]
+
+  subgraph stack["Local Docker Compose stack"]
+    chat["LibreChat · :3080<br/>Chat and cited answers"]
+    rag["LightRAG · :9621<br/>Document indexing and retrieval"]
+    automation["n8n · :5678<br/>Optional ingestion workflows"]
+    bridge["MCP bridge<br/>Read-only knowledge_search"]
+    ollama["Ollama<br/>Local bge-m3 embeddings"]
+    mongo[("MongoDB<br/>Users and conversations")]
+    postgres[("PostgreSQL + pgvector<br/>Documents, graph and vectors")]
+
+    chat <-->|"Authenticated search / evidence"| bridge
+    bridge <-->|"X-API-Key · POST /query/data"| rag
+    automation -->|"X-API-Key · ingest documents"| rag
+    rag -->|"Embed documents and queries"| ollama
+    chat --> mongo
+    rag --> postgres
+  end
+
+  subgraph providers["Configured external providers"]
+    chatmodel["Chat LLM<br/>CHAT_*"]
+    knowledgemodel["Extraction and keyword LLM<br/>KNOWLEDGE_*"]
+    sources["Tavily / Google Drive<br/>Optional ingestion sources"]
+  end
+
+  user -->|"Ask questions"| chat
+  user -->|"Upload and manage documents"| rag
+  user -->|"Run workflows"| automation
+  chat <-->|"Generate answers and tool calls"| chatmodel
+  rag <-->|"Extract entities and query keywords"| knowledgemodel
+  automation -->|"Fetch source content"| sources
+```
+
+Docker volumes retain application files, LightRAG inputs, and n8n workflows
+and credentials; see [service storage](#what-each-service-stores).
+Browser ports bind to `127.0.0.1` by default. LibreChat uploads do not enter
+LightRAG automatically: use the LightRAG UI or an ingestion workflow. The chat
+model writes the final answer from retrieved evidence; the MCP bridge cannot
+modify documents. Provider boxes reflect the default external LLM setup;
+OpenAI-compatible local alternatives can be configured.
+
 ## Start here
 
 - [Install the stack](#installation)
