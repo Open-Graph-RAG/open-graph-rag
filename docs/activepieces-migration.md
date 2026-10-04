@@ -24,6 +24,32 @@ do not copy platform-specific settings blindly.
 
 ## Acceptance gates
 
+The default `compose.yaml` continues to run n8n. The optional
+`compose.activepieces.yaml` adds dedicated Activepieces PostgreSQL/pgvector,
+Redis and app/worker services. Prepare missing settings explicitly:
+
+```bash
+python3 scripts/add_activepieces_env.py
+docker compose -f compose.yaml -f compose.activepieces.yaml config --quiet
+```
+
+The migration command preserves existing `.env` bytes, values and file mode,
+prints no secret values, and does nothing on repeat execution. Initial setup
+with `scripts/init_env.py` also generates these settings. Keep
+`ACTIVEPIECES_PORT` and `AP_FRONTEND_URL` consistent if you change the default
+localhost UI port of 8080. Protect `AP_ENCRYPTION_KEY` and `AP_JWT_SECRET`.
+
+After feasibility checks pass, the additive service commands are:
+
+```bash
+docker compose -f compose.yaml -f compose.activepieces.yaml up -d activepieces-app activepieces-worker
+docker compose -f compose.yaml -f compose.activepieces.yaml ps
+docker compose -f compose.yaml -f compose.activepieces.yaml stop activepieces-app activepieces-worker
+```
+
+Starting the optional services is not a cutover. No caller should use their
+webhooks before acceptance. Review/redact logs locally before sharing them.
+
 Before porting flows, import and run a minimal native flow on the pinned
 Community Edition image. Prove header authentication rejects unauthorized
 requests before downstream calls, `/sync` supports custom JSON responses,
@@ -39,6 +65,24 @@ workflow errors use JSON with `400` for invalid input, `405` for wrong methods,
 and `502` for upstream failures. Do not equate every LightRAG `409` with a
 duplicate. Report partial acceptance and every accepted tracking ID. Disable
 automatic insertion retries; retries cannot promise exactly-once ingestion.
+
+The explicit error contract to test is:
+
+```json
+{
+  "status": "error",
+  "error": {"code": "invalid_input", "message": "Invalid request input."},
+  "queued": 0,
+  "alreadyPresent": 0,
+  "trackIds": []
+}
+```
+
+Codes are `invalid_input`, `method_not_allowed`, and `upstream_failure`.
+Messages are stable redacted text; upstream error bodies and credentials must
+not appear. On partial acceptance, counts and tracking IDs reflect successful
+inserts before the failure. Native trigger/engine errors require separate
+observed contracts and may bypass this workflow response.
 
 Run three separate verification layers:
 
