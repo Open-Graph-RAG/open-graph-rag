@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ENV_FILE = ROOT / ".env"
 VARIABLES = {
     "ACTIVEPIECES_PORT": lambda: "8080",
-    "AP_FRONTEND_URL": lambda: "http://localhost:8080",
+    "AP_FRONTEND_URL": lambda: "http://activepieces.localhost:8080",
     "AP_EXECUTION_MODE": lambda: "SANDBOX_CODE_ONLY",
     "AP_WEBHOOK_TIMEOUT_SECONDS": lambda: "30",
     "AP_WORKER_CONCURRENCY": lambda: "1",

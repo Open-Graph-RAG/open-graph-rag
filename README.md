@@ -460,6 +460,15 @@ python3 -m venv .venv
 .venv/bin/python -m unittest discover -s mcp/tests -v
 ```
 
+## Activepieces replacement
+
+The optional Activepieces 0.92.1 stack and generated ingestion templates are
+being verified before cutover. Keep n8n and existing webhook callers active
+until the [acceptance and recovery gates](docs/activepieces-migration.md) pass.
+Use the [Activepieces setup and import instructions](activepieces/README.md)
+for the additive environment migration, optional Compose services, sanitized
+imports and isolated tests. Starting those services does not switch traffic.
+
 ## Official references
 
 - [LightRAG API and storage, v1.5.7](https://github.com/HKUDS/LightRAG/blob/v1.5.7/docs/LightRAG-API-Server.md)

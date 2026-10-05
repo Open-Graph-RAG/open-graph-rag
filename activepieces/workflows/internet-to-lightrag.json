@@ -1,0 +1,545 @@
+{
+  "schemaVersion": "27",
+  "flows": [
+    {
+      "displayName": "Internet prompt to LightRAG",
+      "description": "Authenticated Tavily search with bounded sequential LightRAG insertion.",
+      "valid": false,
+      "schemaVersion": "27",
+      "trigger": {
+        "name": "trigger",
+        "displayName": "Authenticated JSON webhook",
+        "valid": true,
+        "type": "PIECE_TRIGGER",
+        "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+        "settings": {
+          "pieceName": "@activepieces/piece-webhook",
+          "pieceVersion": "0.1.42",
+          "triggerName": "catch_webhook",
+          "propertySettings": {},
+          "input": {
+            "authType": "header",
+            "authFields": {
+              "headerName": "X-Ingest-Token",
+              "headerValue": "CONFIGURE_INCOMING_TOKEN"
+            }
+          }
+        },
+        "nextAction": {
+          "name": "validate_method",
+          "displayName": "Require POST request",
+          "valid": true,
+          "type": "CODE",
+          "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+          "settings": {
+            "sourceCode": {
+              "packageJson": "{}",
+              "code": "export const code = async (inputs) => {\nif (String(inputs.method || '').toUpperCase() !== 'POST') throw new Error('method not allowed');\nreturn {allowed: true};\n};"
+            },
+            "input": {
+              "method": "{{trigger['output'].method}}"
+            },
+            "errorHandlingOptions": {
+              "continueOnFailure": {
+                "value": true
+              },
+              "retryOnFailure": {
+                "value": false
+              }
+            }
+          },
+          "continueOnFailureBranches": {
+            "onSuccess": {
+              "name": "validate_prompt",
+              "displayName": "Validate prompt",
+              "valid": true,
+              "type": "CODE",
+              "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+              "settings": {
+                "sourceCode": {
+                  "packageJson": "{}",
+                  "code": "export const code = async (inputs) => {\nconst module = { exports: {} };\n\n\nconst MAX_PROMPT_CHARS = 4000;\nconst MAX_RESULTS = 10;\nconst MAX_CONTENT_CHARS = 500000;\nconst INSERTION_START_CUTOFF_MS = 20000;\n\nfunction validatePrompt(input) {\n  const body = input?.body ?? input;\n  const prompt = body?.prompt;\n  if (typeof prompt !== 'string' || !prompt.trim()) throw new Error('Request body must include a non-empty prompt string.');\n  if (prompt.trim().length > MAX_PROMPT_CHARS) throw new Error('prompt must be at most 4000 characters.');\n  const maxResults = body.maxResults === undefined ? 5 : body.maxResults;\n  if (typeof maxResults !== 'number' || !Number.isInteger(maxResults) || maxResults < 1 || maxResults > MAX_RESULTS) {\n    throw new Error('maxResults must be an integer from 1 to 10.');\n  }\n  return { prompt: prompt.trim(), maxResults };\n}\n\nfunction validHttpUrl(value) {\n  const source = value.trim().split('#', 1)[0];\n  if (!/^https?:\\/\\/[^\\s/?#@]+(?:[/?#]|$)/i.test(source) || /[\\u0000-\\u0020\\u007f]/u.test(source)) return null;\n  return source;\n}\n\nfunction validateSearchResponse(response) {\n  if (!response || typeof response !== 'object' || Array.isArray(response)) throw new Error('Tavily returned a malformed response object.');\n  if (response.error !== undefined && response.error !== null && response.error !== '') throw new Error('Tavily search failed.');\n  if (!Array.isArray(response.results)) throw new Error('Tavily response must contain a results array.');\n  if (response.results.length > MAX_RESULTS) throw new Error('Tavily returned too many results.');\n  const results = [];\n  const reasons = {};\n  const reject = (reason) => { reasons[reason] = (reasons[reason] ?? 0) + 1; };\n  const hasLetterOrNumber = /[\\p{L}\\p{N}]/u;\n  const denialOnly = /^(?:access denied|access forbidden|403 forbidden|you have been blocked|request blocked|website unavailable|page unavailable|service unavailable|404 not found|page not found|this site can(?:not|\\x27t) be reached|the site can(?:not|\\x27t) be reached|robot check|captcha required|enable javascript and cookies to continue)[.!\\s]*$/i;\n  for (const result of response.results) {\n    if (!result || typeof result !== 'object' || Array.isArray(result)) { reject('malformed_result'); continue; }\n    if (typeof result.raw_content !== 'string' || !result.raw_content.trim()) { reject('missing_raw_content'); continue; }\n    if (result.raw_content.length > MAX_CONTENT_CHARS) { reject('raw_content_too_large'); continue; }\n    if (typeof result.url !== 'string' || !validHttpUrl(result.url)) { reject('invalid_url'); continue; }\n    if (/^(?:<!doctype\\s+html\\b|<html\\b)/i.test(result.raw_content.trimStart())) { reject('html_page'); continue; }\n    const trimmed = result.raw_content.trim();\n    if (!hasLetterOrNumber.test(trimmed)) { reject('no_alphanumeric_content'); continue; }\n    if (trimmed.length <= 300 && denialOnly.test(trimmed)) { reject('access_denied_or_error_page'); continue; }\n    results.push(result);\n  }\n  const rejected = Object.values(reasons).reduce((sum, count) => sum + count, 0);\n  return { ...response, results, validation: { received: response.results.length, accepted: results.length, rejected, reasons } };\n}\n\nfunction deduplicateResults(results, prompt) {\n  if (!Array.isArray(results)) throw new Error('Validated search results must be an array.');\n  const seen = new Set();\n  const seenUrls = new Set();\n  const documents = [];\n  for (const result of results) {\n    if (!result || typeof result.raw_content !== 'string' || !result.raw_content.trim() || result.raw_content.length > MAX_CONTENT_CHARS || typeof result.url !== 'string') continue;\n    const source = validHttpUrl(result.url);\n    if (!source || seenUrls.has(source)) continue;\n    const text = result.raw_content.normalize('NFKC').replace(/\\s+/gu, ' ').trim();\n    if (!text || seen.has(text)) continue;\n    seen.add(text);\n    seenUrls.add(source);\n    documents.push({ text, file_source: source });\n  }\n  return { documents, prompt, found: documents.length };\n}\n\nfunction prepareGraphDocuments(bundle, validatedSearch) {\n  if (!bundle || typeof bundle !== 'object' || Array.isArray(bundle)) throw new Error('Deduplication step returned a malformed document bundle.');\n  if (!Array.isArray(bundle.documents)) throw new Error('Deduplication step must return a documents array.');\n  if (!validatedSearch || !Array.isArray(validatedSearch.results)) throw new Error('Validated search results are unavailable for metadata mapping.');\n  const metadataBySource = new Map();\n  for (const result of validatedSearch.results) {\n    if (!result || typeof result.url !== 'string') continue;\n    const source = result.url.trim().split('#', 1)[0];\n    if (!metadataBySource.has(source)) metadataBySource.set(source, { title: typeof result.title === 'string' && result.title.trim() ? result.title : undefined });\n  }\n  const seenSources = new Set();\n  const documents = bundle.documents.map((doc, index) => {\n    if (!doc || typeof doc !== 'object' || typeof doc.text !== 'string' || !doc.text.trim() || typeof doc.file_source !== 'string' || !doc.file_source.trim()) {\n      throw new Error(`Deduplicated document ${index} has invalid text/source alignment.`);\n    }\n    if (seenSources.has(doc.file_source)) throw new Error(`Deduplicated documents contain a repeated source at index ${index}.`);\n    seenSources.add(doc.file_source);\n    const match = metadataBySource.get(doc.file_source.split('#', 1)[0]);\n    return {\n      ...doc,\n      metadata: {\n        source_url: doc.file_source,\n        ...(match?.title ? { title: match.title } : {}),\n        query: bundle.prompt,\n        content_type: 'text/plain',\n      },\n    };\n  });\n  return { ...bundle, found: documents.length, documents };\n}\n\nfunction isDuplicateFailure(errorMessage) {\n  if (typeof errorMessage !== 'string') return false;\n  let failure;\n  try { failure = JSON.parse(errorMessage); } catch { return false; }\n  const statusCode = Number(failure?.status);\n  let body = failure?.responseBody;\n  if (typeof body === 'string') {\n    try { body = JSON.parse(body); } catch { return false; }\n  }\n  return statusCode === 409 && typeof body?.detail === 'string' &&\n    body.detail.startsWith('Document storage already contains');\n}\n\nfunction insertionOutcome(response, source, errorMessage) {\n  const code = Number(response?.statusCode ?? response?.status ?? 0);\n  const body = response?.body && typeof response.body === 'object' ? response.body : {};\n  const detail = typeof body.detail === 'string' ? body.detail : '';\n  if (code >= 200 && code < 300) {\n    if (body.status === 'success' && typeof body.track_id === 'string' && body.track_id) return { source, status: 'queued', track_id: body.track_id };\n    return { source, status: 'failed' };\n  }\n  if (code === 409 && detail.startsWith('Document storage already contains')) return { source, status: 'already_present' };\n  if (isDuplicateFailure(errorMessage)) return { source, status: 'already_present' };\n  return { source, status: 'failed' };\n}\n\nfunction summarizeInsertions(outcomes, { deadlineExceeded = false } = {}) {\n  if (!Array.isArray(outcomes)) throw new Error('Insertion outcomes must be an array.');\n  let queued = 0;\n  let alreadyPresent = 0;\n  const trackIds = [];\n  for (const outcome of outcomes) {\n    if (outcome?.status === 'queued' && typeof outcome.track_id === 'string' && outcome.track_id) {\n      queued++;\n      trackIds.push(outcome.track_id);\n    } else if (outcome?.status === 'already_present') alreadyPresent++;\n  }\n  const failed = outcomes.some((outcome) => outcome?.status === 'failed' || outcome?.status === 'not_attempted');\n  if (failed || deadlineExceeded) {\n    return {\n      httpStatus: 502,\n      status: 'error',\n      error: {\n        code: 'upstream_failure',\n        message: 'An upstream service failed during ingestion.',\n      },\n      queued,\n      alreadyPresent,\n      trackIds,\n    };\n  }\n  const hasNewWork = queued > 0;\n  return {\n    httpStatus: hasNewWork ? 202 : 200,\n    status: hasNewWork ? 'queued' : 'skipped',\n    message: hasNewWork\n      ? 'LightRAG accepted documents for background processing; ingestion is not complete yet.'\n      : 'All usable sources were already present in LightRAG; no new processing was queued.',\n    queued,\n    alreadyPresent,\n    trackIds,\n  };\n}\n\nfunction hasInsertionBudget(requestStart, now = Date.now()) {\n  const startSeconds = typeof requestStart === 'number' || typeof requestStart === 'string' ? Number(requestStart) : NaN;\n  if (!Number.isFinite(startSeconds) || startSeconds <= 0) return false;\n  const startMs = startSeconds * 1000;\n  if (startMs > now + 1000) return false;\n  return now < startMs + INSERTION_START_CUTOFF_MS;\n}\n\nmodule.exports = {\n  deduplicateResults,\n  hasInsertionBudget,\n  isDuplicateFailure,\n  insertionOutcome,\n  prepareGraphDocuments,\n  summarizeInsertions,\n  validatePrompt,\n  validateSearchResponse,\n};\n\nreturn module.exports.validatePrompt(inputs.body);\n};"
+                },
+                "input": {
+                  "body": "{{trigger['output'].body}}"
+                },
+                "errorHandlingOptions": {
+                  "continueOnFailure": {
+                    "value": true
+                  },
+                  "retryOnFailure": {
+                    "value": false
+                  }
+                }
+              },
+              "continueOnFailureBranches": {
+                "onSuccess": {
+                  "name": "search_web",
+                  "displayName": "Search web with Tavily",
+                  "valid": true,
+                  "type": "PIECE",
+                  "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                  "settings": {
+                    "pieceName": "@activepieces/piece-http",
+                    "pieceVersion": "0.12.1",
+                    "actionName": "send_request",
+                    "propertySettings": {},
+                    "input": {
+                      "method": "POST",
+                      "url": "https://api.tavily.com/search",
+                      "headers": {
+                        "Content-Type": "application/json"
+                      },
+                      "queryParams": {},
+                      "authType": "BEARER_TOKEN",
+                      "body_type": "json",
+                      "timeout": 5,
+                      "failureMode": "retry_none",
+                      "body": {
+                        "data": {
+                          "query": "{{validate_prompt['output'].prompt}}",
+                          "max_results": "{{validate_prompt['output'].maxResults}}",
+                          "include_raw_content": true
+                        }
+                      },
+                      "authFields": {
+                        "token": "{{connections.tavily_bearer_api_key.secret_text}}"
+                      }
+                    },
+                    "errorHandlingOptions": {
+                      "continueOnFailure": {
+                        "value": true
+                      },
+                      "retryOnFailure": {
+                        "value": false
+                      }
+                    }
+                  },
+                  "continueOnFailureBranches": {
+                    "onSuccess": {
+                      "name": "prepare_pages",
+                      "displayName": "Validate search results and deduplicate pages",
+                      "valid": true,
+                      "type": "CODE",
+                      "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                      "settings": {
+                        "sourceCode": {
+                          "packageJson": "{}",
+                          "code": "export const code = async (inputs) => {\nconst module = { exports: {} };\n\n\nconst MAX_PROMPT_CHARS = 4000;\nconst MAX_RESULTS = 10;\nconst MAX_CONTENT_CHARS = 500000;\nconst INSERTION_START_CUTOFF_MS = 20000;\n\nfunction validatePrompt(input) {\n  const body = input?.body ?? input;\n  const prompt = body?.prompt;\n  if (typeof prompt !== 'string' || !prompt.trim()) throw new Error('Request body must include a non-empty prompt string.');\n  if (prompt.trim().length > MAX_PROMPT_CHARS) throw new Error('prompt must be at most 4000 characters.');\n  const maxResults = body.maxResults === undefined ? 5 : body.maxResults;\n  if (typeof maxResults !== 'number' || !Number.isInteger(maxResults) || maxResults < 1 || maxResults > MAX_RESULTS) {\n    throw new Error('maxResults must be an integer from 1 to 10.');\n  }\n  return { prompt: prompt.trim(), maxResults };\n}\n\nfunction validHttpUrl(value) {\n  const source = value.trim().split('#', 1)[0];\n  if (!/^https?:\\/\\/[^\\s/?#@]+(?:[/?#]|$)/i.test(source) || /[\\u0000-\\u0020\\u007f]/u.test(source)) return null;\n  return source;\n}\n\nfunction validateSearchResponse(response) {\n  if (!response || typeof response !== 'object' || Array.isArray(response)) throw new Error('Tavily returned a malformed response object.');\n  if (response.error !== undefined && response.error !== null && response.error !== '') throw new Error('Tavily search failed.');\n  if (!Array.isArray(response.results)) throw new Error('Tavily response must contain a results array.');\n  if (response.results.length > MAX_RESULTS) throw new Error('Tavily returned too many results.');\n  const results = [];\n  const reasons = {};\n  const reject = (reason) => { reasons[reason] = (reasons[reason] ?? 0) + 1; };\n  const hasLetterOrNumber = /[\\p{L}\\p{N}]/u;\n  const denialOnly = /^(?:access denied|access forbidden|403 forbidden|you have been blocked|request blocked|website unavailable|page unavailable|service unavailable|404 not found|page not found|this site can(?:not|\\x27t) be reached|the site can(?:not|\\x27t) be reached|robot check|captcha required|enable javascript and cookies to continue)[.!\\s]*$/i;\n  for (const result of response.results) {\n    if (!result || typeof result !== 'object' || Array.isArray(result)) { reject('malformed_result'); continue; }\n    if (typeof result.raw_content !== 'string' || !result.raw_content.trim()) { reject('missing_raw_content'); continue; }\n    if (result.raw_content.length > MAX_CONTENT_CHARS) { reject('raw_content_too_large'); continue; }\n    if (typeof result.url !== 'string' || !validHttpUrl(result.url)) { reject('invalid_url'); continue; }\n    if (/^(?:<!doctype\\s+html\\b|<html\\b)/i.test(result.raw_content.trimStart())) { reject('html_page'); continue; }\n    const trimmed = result.raw_content.trim();\n    if (!hasLetterOrNumber.test(trimmed)) { reject('no_alphanumeric_content'); continue; }\n    if (trimmed.length <= 300 && denialOnly.test(trimmed)) { reject('access_denied_or_error_page'); continue; }\n    results.push(result);\n  }\n  const rejected = Object.values(reasons).reduce((sum, count) => sum + count, 0);\n  return { ...response, results, validation: { received: response.results.length, accepted: results.length, rejected, reasons } };\n}\n\nfunction deduplicateResults(results, prompt) {\n  if (!Array.isArray(results)) throw new Error('Validated search results must be an array.');\n  const seen = new Set();\n  const seenUrls = new Set();\n  const documents = [];\n  for (const result of results) {\n    if (!result || typeof result.raw_content !== 'string' || !result.raw_content.trim() || result.raw_content.length > MAX_CONTENT_CHARS || typeof result.url !== 'string') continue;\n    const source = validHttpUrl(result.url);\n    if (!source || seenUrls.has(source)) continue;\n    const text = result.raw_content.normalize('NFKC').replace(/\\s+/gu, ' ').trim();\n    if (!text || seen.has(text)) continue;\n    seen.add(text);\n    seenUrls.add(source);\n    documents.push({ text, file_source: source });\n  }\n  return { documents, prompt, found: documents.length };\n}\n\nfunction prepareGraphDocuments(bundle, validatedSearch) {\n  if (!bundle || typeof bundle !== 'object' || Array.isArray(bundle)) throw new Error('Deduplication step returned a malformed document bundle.');\n  if (!Array.isArray(bundle.documents)) throw new Error('Deduplication step must return a documents array.');\n  if (!validatedSearch || !Array.isArray(validatedSearch.results)) throw new Error('Validated search results are unavailable for metadata mapping.');\n  const metadataBySource = new Map();\n  for (const result of validatedSearch.results) {\n    if (!result || typeof result.url !== 'string') continue;\n    const source = result.url.trim().split('#', 1)[0];\n    if (!metadataBySource.has(source)) metadataBySource.set(source, { title: typeof result.title === 'string' && result.title.trim() ? result.title : undefined });\n  }\n  const seenSources = new Set();\n  const documents = bundle.documents.map((doc, index) => {\n    if (!doc || typeof doc !== 'object' || typeof doc.text !== 'string' || !doc.text.trim() || typeof doc.file_source !== 'string' || !doc.file_source.trim()) {\n      throw new Error(`Deduplicated document ${index} has invalid text/source alignment.`);\n    }\n    if (seenSources.has(doc.file_source)) throw new Error(`Deduplicated documents contain a repeated source at index ${index}.`);\n    seenSources.add(doc.file_source);\n    const match = metadataBySource.get(doc.file_source.split('#', 1)[0]);\n    return {\n      ...doc,\n      metadata: {\n        source_url: doc.file_source,\n        ...(match?.title ? { title: match.title } : {}),\n        query: bundle.prompt,\n        content_type: 'text/plain',\n      },\n    };\n  });\n  return { ...bundle, found: documents.length, documents };\n}\n\nfunction isDuplicateFailure(errorMessage) {\n  if (typeof errorMessage !== 'string') return false;\n  let failure;\n  try { failure = JSON.parse(errorMessage); } catch { return false; }\n  const statusCode = Number(failure?.status);\n  let body = failure?.responseBody;\n  if (typeof body === 'string') {\n    try { body = JSON.parse(body); } catch { return false; }\n  }\n  return statusCode === 409 && typeof body?.detail === 'string' &&\n    body.detail.startsWith('Document storage already contains');\n}\n\nfunction insertionOutcome(response, source, errorMessage) {\n  const code = Number(response?.statusCode ?? response?.status ?? 0);\n  const body = response?.body && typeof response.body === 'object' ? response.body : {};\n  const detail = typeof body.detail === 'string' ? body.detail : '';\n  if (code >= 200 && code < 300) {\n    if (body.status === 'success' && typeof body.track_id === 'string' && body.track_id) return { source, status: 'queued', track_id: body.track_id };\n    return { source, status: 'failed' };\n  }\n  if (code === 409 && detail.startsWith('Document storage already contains')) return { source, status: 'already_present' };\n  if (isDuplicateFailure(errorMessage)) return { source, status: 'already_present' };\n  return { source, status: 'failed' };\n}\n\nfunction summarizeInsertions(outcomes, { deadlineExceeded = false } = {}) {\n  if (!Array.isArray(outcomes)) throw new Error('Insertion outcomes must be an array.');\n  let queued = 0;\n  let alreadyPresent = 0;\n  const trackIds = [];\n  for (const outcome of outcomes) {\n    if (outcome?.status === 'queued' && typeof outcome.track_id === 'string' && outcome.track_id) {\n      queued++;\n      trackIds.push(outcome.track_id);\n    } else if (outcome?.status === 'already_present') alreadyPresent++;\n  }\n  const failed = outcomes.some((outcome) => outcome?.status === 'failed' || outcome?.status === 'not_attempted');\n  if (failed || deadlineExceeded) {\n    return {\n      httpStatus: 502,\n      status: 'error',\n      error: {\n        code: 'upstream_failure',\n        message: 'An upstream service failed during ingestion.',\n      },\n      queued,\n      alreadyPresent,\n      trackIds,\n    };\n  }\n  const hasNewWork = queued > 0;\n  return {\n    httpStatus: hasNewWork ? 202 : 200,\n    status: hasNewWork ? 'queued' : 'skipped',\n    message: hasNewWork\n      ? 'LightRAG accepted documents for background processing; ingestion is not complete yet.'\n      : 'All usable sources were already present in LightRAG; no new processing was queued.',\n    queued,\n    alreadyPresent,\n    trackIds,\n  };\n}\n\nfunction hasInsertionBudget(requestStart, now = Date.now()) {\n  const startSeconds = typeof requestStart === 'number' || typeof requestStart === 'string' ? Number(requestStart) : NaN;\n  if (!Number.isFinite(startSeconds) || startSeconds <= 0) return false;\n  const startMs = startSeconds * 1000;\n  if (startMs > now + 1000) return false;\n  return now < startMs + INSERTION_START_CUTOFF_MS;\n}\n\nmodule.exports = {\n  deduplicateResults,\n  hasInsertionBudget,\n  isDuplicateFailure,\n  insertionOutcome,\n  prepareGraphDocuments,\n  summarizeInsertions,\n  validatePrompt,\n  validateSearchResponse,\n};\n\nconst request = module.exports.validatePrompt(inputs.body);\nconst checked = module.exports.validateSearchResponse(inputs.search);\nconst bundle = module.exports.deduplicateResults(checked.results, request.prompt);\nreturn {...module.exports.prepareGraphDocuments(bundle, checked), search: checked};\n};"
+                        },
+                        "input": {
+                          "body": "{{trigger['output'].body}}",
+                          "search": "{{search_web['output'].body}}"
+                        },
+                        "errorHandlingOptions": {
+                          "continueOnFailure": {
+                            "value": true
+                          },
+                          "retryOnFailure": {
+                            "value": false
+                          }
+                        }
+                      },
+                      "continueOnFailureBranches": {
+                        "onSuccess": {
+                          "name": "loop_pages",
+                          "displayName": "Insert usable pages sequentially",
+                          "valid": true,
+                          "type": "LOOP_ON_ITEMS",
+                          "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                          "settings": {
+                            "items": "{{prepare_pages['output'].documents}}"
+                          },
+                          "firstLoopAction": {
+                            "name": "deadline_gate",
+                            "displayName": "Enforce 20 second insertion cutoff",
+                            "valid": true,
+                            "type": "CODE",
+                            "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                            "settings": {
+                              "sourceCode": {
+                                "packageJson": "{}",
+                                "code": "export const code = async (inputs) => {\nconst module = { exports: {} };\n\n\nconst MAX_PROMPT_CHARS = 4000;\nconst MAX_RESULTS = 10;\nconst MAX_CONTENT_CHARS = 500000;\nconst INSERTION_START_CUTOFF_MS = 20000;\n\nfunction validatePrompt(input) {\n  const body = input?.body ?? input;\n  const prompt = body?.prompt;\n  if (typeof prompt !== 'string' || !prompt.trim()) throw new Error('Request body must include a non-empty prompt string.');\n  if (prompt.trim().length > MAX_PROMPT_CHARS) throw new Error('prompt must be at most 4000 characters.');\n  const maxResults = body.maxResults === undefined ? 5 : body.maxResults;\n  if (typeof maxResults !== 'number' || !Number.isInteger(maxResults) || maxResults < 1 || maxResults > MAX_RESULTS) {\n    throw new Error('maxResults must be an integer from 1 to 10.');\n  }\n  return { prompt: prompt.trim(), maxResults };\n}\n\nfunction validHttpUrl(value) {\n  const source = value.trim().split('#', 1)[0];\n  if (!/^https?:\\/\\/[^\\s/?#@]+(?:[/?#]|$)/i.test(source) || /[\\u0000-\\u0020\\u007f]/u.test(source)) return null;\n  return source;\n}\n\nfunction validateSearchResponse(response) {\n  if (!response || typeof response !== 'object' || Array.isArray(response)) throw new Error('Tavily returned a malformed response object.');\n  if (response.error !== undefined && response.error !== null && response.error !== '') throw new Error('Tavily search failed.');\n  if (!Array.isArray(response.results)) throw new Error('Tavily response must contain a results array.');\n  if (response.results.length > MAX_RESULTS) throw new Error('Tavily returned too many results.');\n  const results = [];\n  const reasons = {};\n  const reject = (reason) => { reasons[reason] = (reasons[reason] ?? 0) + 1; };\n  const hasLetterOrNumber = /[\\p{L}\\p{N}]/u;\n  const denialOnly = /^(?:access denied|access forbidden|403 forbidden|you have been blocked|request blocked|website unavailable|page unavailable|service unavailable|404 not found|page not found|this site can(?:not|\\x27t) be reached|the site can(?:not|\\x27t) be reached|robot check|captcha required|enable javascript and cookies to continue)[.!\\s]*$/i;\n  for (const result of response.results) {\n    if (!result || typeof result !== 'object' || Array.isArray(result)) { reject('malformed_result'); continue; }\n    if (typeof result.raw_content !== 'string' || !result.raw_content.trim()) { reject('missing_raw_content'); continue; }\n    if (result.raw_content.length > MAX_CONTENT_CHARS) { reject('raw_content_too_large'); continue; }\n    if (typeof result.url !== 'string' || !validHttpUrl(result.url)) { reject('invalid_url'); continue; }\n    if (/^(?:<!doctype\\s+html\\b|<html\\b)/i.test(result.raw_content.trimStart())) { reject('html_page'); continue; }\n    const trimmed = result.raw_content.trim();\n    if (!hasLetterOrNumber.test(trimmed)) { reject('no_alphanumeric_content'); continue; }\n    if (trimmed.length <= 300 && denialOnly.test(trimmed)) { reject('access_denied_or_error_page'); continue; }\n    results.push(result);\n  }\n  const rejected = Object.values(reasons).reduce((sum, count) => sum + count, 0);\n  return { ...response, results, validation: { received: response.results.length, accepted: results.length, rejected, reasons } };\n}\n\nfunction deduplicateResults(results, prompt) {\n  if (!Array.isArray(results)) throw new Error('Validated search results must be an array.');\n  const seen = new Set();\n  const seenUrls = new Set();\n  const documents = [];\n  for (const result of results) {\n    if (!result || typeof result.raw_content !== 'string' || !result.raw_content.trim() || result.raw_content.length > MAX_CONTENT_CHARS || typeof result.url !== 'string') continue;\n    const source = validHttpUrl(result.url);\n    if (!source || seenUrls.has(source)) continue;\n    const text = result.raw_content.normalize('NFKC').replace(/\\s+/gu, ' ').trim();\n    if (!text || seen.has(text)) continue;\n    seen.add(text);\n    seenUrls.add(source);\n    documents.push({ text, file_source: source });\n  }\n  return { documents, prompt, found: documents.length };\n}\n\nfunction prepareGraphDocuments(bundle, validatedSearch) {\n  if (!bundle || typeof bundle !== 'object' || Array.isArray(bundle)) throw new Error('Deduplication step returned a malformed document bundle.');\n  if (!Array.isArray(bundle.documents)) throw new Error('Deduplication step must return a documents array.');\n  if (!validatedSearch || !Array.isArray(validatedSearch.results)) throw new Error('Validated search results are unavailable for metadata mapping.');\n  const metadataBySource = new Map();\n  for (const result of validatedSearch.results) {\n    if (!result || typeof result.url !== 'string') continue;\n    const source = result.url.trim().split('#', 1)[0];\n    if (!metadataBySource.has(source)) metadataBySource.set(source, { title: typeof result.title === 'string' && result.title.trim() ? result.title : undefined });\n  }\n  const seenSources = new Set();\n  const documents = bundle.documents.map((doc, index) => {\n    if (!doc || typeof doc !== 'object' || typeof doc.text !== 'string' || !doc.text.trim() || typeof doc.file_source !== 'string' || !doc.file_source.trim()) {\n      throw new Error(`Deduplicated document ${index} has invalid text/source alignment.`);\n    }\n    if (seenSources.has(doc.file_source)) throw new Error(`Deduplicated documents contain a repeated source at index ${index}.`);\n    seenSources.add(doc.file_source);\n    const match = metadataBySource.get(doc.file_source.split('#', 1)[0]);\n    return {\n      ...doc,\n      metadata: {\n        source_url: doc.file_source,\n        ...(match?.title ? { title: match.title } : {}),\n        query: bundle.prompt,\n        content_type: 'text/plain',\n      },\n    };\n  });\n  return { ...bundle, found: documents.length, documents };\n}\n\nfunction isDuplicateFailure(errorMessage) {\n  if (typeof errorMessage !== 'string') return false;\n  let failure;\n  try { failure = JSON.parse(errorMessage); } catch { return false; }\n  const statusCode = Number(failure?.status);\n  let body = failure?.responseBody;\n  if (typeof body === 'string') {\n    try { body = JSON.parse(body); } catch { return false; }\n  }\n  return statusCode === 409 && typeof body?.detail === 'string' &&\n    body.detail.startsWith('Document storage already contains');\n}\n\nfunction insertionOutcome(response, source, errorMessage) {\n  const code = Number(response?.statusCode ?? response?.status ?? 0);\n  const body = response?.body && typeof response.body === 'object' ? response.body : {};\n  const detail = typeof body.detail === 'string' ? body.detail : '';\n  if (code >= 200 && code < 300) {\n    if (body.status === 'success' && typeof body.track_id === 'string' && body.track_id) return { source, status: 'queued', track_id: body.track_id };\n    return { source, status: 'failed' };\n  }\n  if (code === 409 && detail.startsWith('Document storage already contains')) return { source, status: 'already_present' };\n  if (isDuplicateFailure(errorMessage)) return { source, status: 'already_present' };\n  return { source, status: 'failed' };\n}\n\nfunction summarizeInsertions(outcomes, { deadlineExceeded = false } = {}) {\n  if (!Array.isArray(outcomes)) throw new Error('Insertion outcomes must be an array.');\n  let queued = 0;\n  let alreadyPresent = 0;\n  const trackIds = [];\n  for (const outcome of outcomes) {\n    if (outcome?.status === 'queued' && typeof outcome.track_id === 'string' && outcome.track_id) {\n      queued++;\n      trackIds.push(outcome.track_id);\n    } else if (outcome?.status === 'already_present') alreadyPresent++;\n  }\n  const failed = outcomes.some((outcome) => outcome?.status === 'failed' || outcome?.status === 'not_attempted');\n  if (failed || deadlineExceeded) {\n    return {\n      httpStatus: 502,\n      status: 'error',\n      error: {\n        code: 'upstream_failure',\n        message: 'An upstream service failed during ingestion.',\n      },\n      queued,\n      alreadyPresent,\n      trackIds,\n    };\n  }\n  const hasNewWork = queued > 0;\n  return {\n    httpStatus: hasNewWork ? 202 : 200,\n    status: hasNewWork ? 'queued' : 'skipped',\n    message: hasNewWork\n      ? 'LightRAG accepted documents for background processing; ingestion is not complete yet.'\n      : 'All usable sources were already present in LightRAG; no new processing was queued.',\n    queued,\n    alreadyPresent,\n    trackIds,\n  };\n}\n\nfunction hasInsertionBudget(requestStart, now = Date.now()) {\n  const startSeconds = typeof requestStart === 'number' || typeof requestStart === 'string' ? Number(requestStart) : NaN;\n  if (!Number.isFinite(startSeconds) || startSeconds <= 0) return false;\n  const startMs = startSeconds * 1000;\n  if (startMs > now + 1000) return false;\n  return now < startMs + INSERTION_START_CUTOFF_MS;\n}\n\nmodule.exports = {\n  deduplicateResults,\n  hasInsertionBudget,\n  isDuplicateFailure,\n  insertionOutcome,\n  prepareGraphDocuments,\n  summarizeInsertions,\n  validatePrompt,\n  validateSearchResponse,\n};\n\nif (!module.exports.hasInsertionBudget(inputs.requestStart, Date.now())) throw new Error('insertion deadline reached');\nreturn {allowed: true};\n};"
+                              },
+                              "input": {
+                                "requestStart": "{{trigger['output'].headers['x-activepieces-request-start']}}"
+                              },
+                              "errorHandlingOptions": {
+                                "continueOnFailure": {
+                                  "value": true
+                                },
+                                "retryOnFailure": {
+                                  "value": false
+                                }
+                              }
+                            },
+                            "continueOnFailureBranches": {
+                              "onSuccess": {
+                                "name": "queue_page",
+                                "displayName": "Queue page in LightRAG",
+                                "valid": true,
+                                "type": "PIECE",
+                                "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                                "settings": {
+                                  "pieceName": "@activepieces/piece-http",
+                                  "pieceVersion": "0.12.1",
+                                  "actionName": "send_request",
+                                  "propertySettings": {},
+                                  "input": {
+                                    "method": "POST",
+                                    "url": "http://lightrag:9621/documents/text",
+                                    "headers": {
+                                      "Content-Type": "application/json",
+                                      "X-API-Key": "{{connections.lightrag_api_key.secret_text}}"
+                                    },
+                                    "queryParams": {},
+                                    "authType": "NONE",
+                                    "body_type": "json",
+                                    "timeout": 5,
+                                    "failureMode": "retry_none",
+                                    "body": {
+                                      "data": {
+                                        "text": "{{loop_pages['output'].item.text}}",
+                                        "file_source": "{{loop_pages['output'].item.file_source}}",
+                                        "metadata": "{{loop_pages['output'].item.metadata}}"
+                                      }
+                                    }
+                                  },
+                                  "errorHandlingOptions": {
+                                    "continueOnFailure": {
+                                      "value": true
+                                    },
+                                    "retryOnFailure": {
+                                      "value": false
+                                    }
+                                  }
+                                },
+                                "continueOnFailureBranches": {
+                                  "onSuccess": {
+                                    "name": "record_outcome",
+                                    "displayName": "Record insertion outcome",
+                                    "valid": true,
+                                    "type": "CODE",
+                                    "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                                    "settings": {
+                                      "sourceCode": {
+                                        "packageJson": "{}",
+                                        "code": "export const code = async (inputs) => {\nconst module = { exports: {} };\n\n\nconst MAX_PROMPT_CHARS = 4000;\nconst MAX_RESULTS = 10;\nconst MAX_CONTENT_CHARS = 500000;\nconst INSERTION_START_CUTOFF_MS = 20000;\n\nfunction validatePrompt(input) {\n  const body = input?.body ?? input;\n  const prompt = body?.prompt;\n  if (typeof prompt !== 'string' || !prompt.trim()) throw new Error('Request body must include a non-empty prompt string.');\n  if (prompt.trim().length > MAX_PROMPT_CHARS) throw new Error('prompt must be at most 4000 characters.');\n  const maxResults = body.maxResults === undefined ? 5 : body.maxResults;\n  if (typeof maxResults !== 'number' || !Number.isInteger(maxResults) || maxResults < 1 || maxResults > MAX_RESULTS) {\n    throw new Error('maxResults must be an integer from 1 to 10.');\n  }\n  return { prompt: prompt.trim(), maxResults };\n}\n\nfunction validHttpUrl(value) {\n  const source = value.trim().split('#', 1)[0];\n  if (!/^https?:\\/\\/[^\\s/?#@]+(?:[/?#]|$)/i.test(source) || /[\\u0000-\\u0020\\u007f]/u.test(source)) return null;\n  return source;\n}\n\nfunction validateSearchResponse(response) {\n  if (!response || typeof response !== 'object' || Array.isArray(response)) throw new Error('Tavily returned a malformed response object.');\n  if (response.error !== undefined && response.error !== null && response.error !== '') throw new Error('Tavily search failed.');\n  if (!Array.isArray(response.results)) throw new Error('Tavily response must contain a results array.');\n  if (response.results.length > MAX_RESULTS) throw new Error('Tavily returned too many results.');\n  const results = [];\n  const reasons = {};\n  const reject = (reason) => { reasons[reason] = (reasons[reason] ?? 0) + 1; };\n  const hasLetterOrNumber = /[\\p{L}\\p{N}]/u;\n  const denialOnly = /^(?:access denied|access forbidden|403 forbidden|you have been blocked|request blocked|website unavailable|page unavailable|service unavailable|404 not found|page not found|this site can(?:not|\\x27t) be reached|the site can(?:not|\\x27t) be reached|robot check|captcha required|enable javascript and cookies to continue)[.!\\s]*$/i;\n  for (const result of response.results) {\n    if (!result || typeof result !== 'object' || Array.isArray(result)) { reject('malformed_result'); continue; }\n    if (typeof result.raw_content !== 'string' || !result.raw_content.trim()) { reject('missing_raw_content'); continue; }\n    if (result.raw_content.length > MAX_CONTENT_CHARS) { reject('raw_content_too_large'); continue; }\n    if (typeof result.url !== 'string' || !validHttpUrl(result.url)) { reject('invalid_url'); continue; }\n    if (/^(?:<!doctype\\s+html\\b|<html\\b)/i.test(result.raw_content.trimStart())) { reject('html_page'); continue; }\n    const trimmed = result.raw_content.trim();\n    if (!hasLetterOrNumber.test(trimmed)) { reject('no_alphanumeric_content'); continue; }\n    if (trimmed.length <= 300 && denialOnly.test(trimmed)) { reject('access_denied_or_error_page'); continue; }\n    results.push(result);\n  }\n  const rejected = Object.values(reasons).reduce((sum, count) => sum + count, 0);\n  return { ...response, results, validation: { received: response.results.length, accepted: results.length, rejected, reasons } };\n}\n\nfunction deduplicateResults(results, prompt) {\n  if (!Array.isArray(results)) throw new Error('Validated search results must be an array.');\n  const seen = new Set();\n  const seenUrls = new Set();\n  const documents = [];\n  for (const result of results) {\n    if (!result || typeof result.raw_content !== 'string' || !result.raw_content.trim() || result.raw_content.length > MAX_CONTENT_CHARS || typeof result.url !== 'string') continue;\n    const source = validHttpUrl(result.url);\n    if (!source || seenUrls.has(source)) continue;\n    const text = result.raw_content.normalize('NFKC').replace(/\\s+/gu, ' ').trim();\n    if (!text || seen.has(text)) continue;\n    seen.add(text);\n    seenUrls.add(source);\n    documents.push({ text, file_source: source });\n  }\n  return { documents, prompt, found: documents.length };\n}\n\nfunction prepareGraphDocuments(bundle, validatedSearch) {\n  if (!bundle || typeof bundle !== 'object' || Array.isArray(bundle)) throw new Error('Deduplication step returned a malformed document bundle.');\n  if (!Array.isArray(bundle.documents)) throw new Error('Deduplication step must return a documents array.');\n  if (!validatedSearch || !Array.isArray(validatedSearch.results)) throw new Error('Validated search results are unavailable for metadata mapping.');\n  const metadataBySource = new Map();\n  for (const result of validatedSearch.results) {\n    if (!result || typeof result.url !== 'string') continue;\n    const source = result.url.trim().split('#', 1)[0];\n    if (!metadataBySource.has(source)) metadataBySource.set(source, { title: typeof result.title === 'string' && result.title.trim() ? result.title : undefined });\n  }\n  const seenSources = new Set();\n  const documents = bundle.documents.map((doc, index) => {\n    if (!doc || typeof doc !== 'object' || typeof doc.text !== 'string' || !doc.text.trim() || typeof doc.file_source !== 'string' || !doc.file_source.trim()) {\n      throw new Error(`Deduplicated document ${index} has invalid text/source alignment.`);\n    }\n    if (seenSources.has(doc.file_source)) throw new Error(`Deduplicated documents contain a repeated source at index ${index}.`);\n    seenSources.add(doc.file_source);\n    const match = metadataBySource.get(doc.file_source.split('#', 1)[0]);\n    return {\n      ...doc,\n      metadata: {\n        source_url: doc.file_source,\n        ...(match?.title ? { title: match.title } : {}),\n        query: bundle.prompt,\n        content_type: 'text/plain',\n      },\n    };\n  });\n  return { ...bundle, found: documents.length, documents };\n}\n\nfunction isDuplicateFailure(errorMessage) {\n  if (typeof errorMessage !== 'string') return false;\n  let failure;\n  try { failure = JSON.parse(errorMessage); } catch { return false; }\n  const statusCode = Number(failure?.status);\n  let body = failure?.responseBody;\n  if (typeof body === 'string') {\n    try { body = JSON.parse(body); } catch { return false; }\n  }\n  return statusCode === 409 && typeof body?.detail === 'string' &&\n    body.detail.startsWith('Document storage already contains');\n}\n\nfunction insertionOutcome(response, source, errorMessage) {\n  const code = Number(response?.statusCode ?? response?.status ?? 0);\n  const body = response?.body && typeof response.body === 'object' ? response.body : {};\n  const detail = typeof body.detail === 'string' ? body.detail : '';\n  if (code >= 200 && code < 300) {\n    if (body.status === 'success' && typeof body.track_id === 'string' && body.track_id) return { source, status: 'queued', track_id: body.track_id };\n    return { source, status: 'failed' };\n  }\n  if (code === 409 && detail.startsWith('Document storage already contains')) return { source, status: 'already_present' };\n  if (isDuplicateFailure(errorMessage)) return { source, status: 'already_present' };\n  return { source, status: 'failed' };\n}\n\nfunction summarizeInsertions(outcomes, { deadlineExceeded = false } = {}) {\n  if (!Array.isArray(outcomes)) throw new Error('Insertion outcomes must be an array.');\n  let queued = 0;\n  let alreadyPresent = 0;\n  const trackIds = [];\n  for (const outcome of outcomes) {\n    if (outcome?.status === 'queued' && typeof outcome.track_id === 'string' && outcome.track_id) {\n      queued++;\n      trackIds.push(outcome.track_id);\n    } else if (outcome?.status === 'already_present') alreadyPresent++;\n  }\n  const failed = outcomes.some((outcome) => outcome?.status === 'failed' || outcome?.status === 'not_attempted');\n  if (failed || deadlineExceeded) {\n    return {\n      httpStatus: 502,\n      status: 'error',\n      error: {\n        code: 'upstream_failure',\n        message: 'An upstream service failed during ingestion.',\n      },\n      queued,\n      alreadyPresent,\n      trackIds,\n    };\n  }\n  const hasNewWork = queued > 0;\n  return {\n    httpStatus: hasNewWork ? 202 : 200,\n    status: hasNewWork ? 'queued' : 'skipped',\n    message: hasNewWork\n      ? 'LightRAG accepted documents for background processing; ingestion is not complete yet.'\n      : 'All usable sources were already present in LightRAG; no new processing was queued.',\n    queued,\n    alreadyPresent,\n    trackIds,\n  };\n}\n\nfunction hasInsertionBudget(requestStart, now = Date.now()) {\n  const startSeconds = typeof requestStart === 'number' || typeof requestStart === 'string' ? Number(requestStart) : NaN;\n  if (!Number.isFinite(startSeconds) || startSeconds <= 0) return false;\n  const startMs = startSeconds * 1000;\n  if (startMs > now + 1000) return false;\n  return now < startMs + INSERTION_START_CUTOFF_MS;\n}\n\nmodule.exports = {\n  deduplicateResults,\n  hasInsertionBudget,\n  isDuplicateFailure,\n  insertionOutcome,\n  prepareGraphDocuments,\n  summarizeInsertions,\n  validatePrompt,\n  validateSearchResponse,\n};\n\nreturn module.exports.insertionOutcome(inputs.response, inputs.source, inputs.errorMessage);\n};"
+                                      },
+                                      "input": {
+                                        "response": "{{queue_page['output']}}",
+                                        "errorMessage": "{{queue_page['error']['message']}}",
+                                        "source": "{{loop_pages['output'].item.file_source}}"
+                                      }
+                                    }
+                                  },
+                                  "onFailure": {
+                                    "name": "record_failed",
+                                    "displayName": "Record safe failed insertion",
+                                    "valid": true,
+                                    "type": "CODE",
+                                    "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                                    "settings": {
+                                      "sourceCode": {
+                                        "packageJson": "{}",
+                                        "code": "export const code = async (inputs) => {\nconst module = { exports: {} };\n\n\nconst MAX_PROMPT_CHARS = 4000;\nconst MAX_RESULTS = 10;\nconst MAX_CONTENT_CHARS = 500000;\nconst INSERTION_START_CUTOFF_MS = 20000;\n\nfunction validatePrompt(input) {\n  const body = input?.body ?? input;\n  const prompt = body?.prompt;\n  if (typeof prompt !== 'string' || !prompt.trim()) throw new Error('Request body must include a non-empty prompt string.');\n  if (prompt.trim().length > MAX_PROMPT_CHARS) throw new Error('prompt must be at most 4000 characters.');\n  const maxResults = body.maxResults === undefined ? 5 : body.maxResults;\n  if (typeof maxResults !== 'number' || !Number.isInteger(maxResults) || maxResults < 1 || maxResults > MAX_RESULTS) {\n    throw new Error('maxResults must be an integer from 1 to 10.');\n  }\n  return { prompt: prompt.trim(), maxResults };\n}\n\nfunction validHttpUrl(value) {\n  const source = value.trim().split('#', 1)[0];\n  if (!/^https?:\\/\\/[^\\s/?#@]+(?:[/?#]|$)/i.test(source) || /[\\u0000-\\u0020\\u007f]/u.test(source)) return null;\n  return source;\n}\n\nfunction validateSearchResponse(response) {\n  if (!response || typeof response !== 'object' || Array.isArray(response)) throw new Error('Tavily returned a malformed response object.');\n  if (response.error !== undefined && response.error !== null && response.error !== '') throw new Error('Tavily search failed.');\n  if (!Array.isArray(response.results)) throw new Error('Tavily response must contain a results array.');\n  if (response.results.length > MAX_RESULTS) throw new Error('Tavily returned too many results.');\n  const results = [];\n  const reasons = {};\n  const reject = (reason) => { reasons[reason] = (reasons[reason] ?? 0) + 1; };\n  const hasLetterOrNumber = /[\\p{L}\\p{N}]/u;\n  const denialOnly = /^(?:access denied|access forbidden|403 forbidden|you have been blocked|request blocked|website unavailable|page unavailable|service unavailable|404 not found|page not found|this site can(?:not|\\x27t) be reached|the site can(?:not|\\x27t) be reached|robot check|captcha required|enable javascript and cookies to continue)[.!\\s]*$/i;\n  for (const result of response.results) {\n    if (!result || typeof result !== 'object' || Array.isArray(result)) { reject('malformed_result'); continue; }\n    if (typeof result.raw_content !== 'string' || !result.raw_content.trim()) { reject('missing_raw_content'); continue; }\n    if (result.raw_content.length > MAX_CONTENT_CHARS) { reject('raw_content_too_large'); continue; }\n    if (typeof result.url !== 'string' || !validHttpUrl(result.url)) { reject('invalid_url'); continue; }\n    if (/^(?:<!doctype\\s+html\\b|<html\\b)/i.test(result.raw_content.trimStart())) { reject('html_page'); continue; }\n    const trimmed = result.raw_content.trim();\n    if (!hasLetterOrNumber.test(trimmed)) { reject('no_alphanumeric_content'); continue; }\n    if (trimmed.length <= 300 && denialOnly.test(trimmed)) { reject('access_denied_or_error_page'); continue; }\n    results.push(result);\n  }\n  const rejected = Object.values(reasons).reduce((sum, count) => sum + count, 0);\n  return { ...response, results, validation: { received: response.results.length, accepted: results.length, rejected, reasons } };\n}\n\nfunction deduplicateResults(results, prompt) {\n  if (!Array.isArray(results)) throw new Error('Validated search results must be an array.');\n  const seen = new Set();\n  const seenUrls = new Set();\n  const documents = [];\n  for (const result of results) {\n    if (!result || typeof result.raw_content !== 'string' || !result.raw_content.trim() || result.raw_content.length > MAX_CONTENT_CHARS || typeof result.url !== 'string') continue;\n    const source = validHttpUrl(result.url);\n    if (!source || seenUrls.has(source)) continue;\n    const text = result.raw_content.normalize('NFKC').replace(/\\s+/gu, ' ').trim();\n    if (!text || seen.has(text)) continue;\n    seen.add(text);\n    seenUrls.add(source);\n    documents.push({ text, file_source: source });\n  }\n  return { documents, prompt, found: documents.length };\n}\n\nfunction prepareGraphDocuments(bundle, validatedSearch) {\n  if (!bundle || typeof bundle !== 'object' || Array.isArray(bundle)) throw new Error('Deduplication step returned a malformed document bundle.');\n  if (!Array.isArray(bundle.documents)) throw new Error('Deduplication step must return a documents array.');\n  if (!validatedSearch || !Array.isArray(validatedSearch.results)) throw new Error('Validated search results are unavailable for metadata mapping.');\n  const metadataBySource = new Map();\n  for (const result of validatedSearch.results) {\n    if (!result || typeof result.url !== 'string') continue;\n    const source = result.url.trim().split('#', 1)[0];\n    if (!metadataBySource.has(source)) metadataBySource.set(source, { title: typeof result.title === 'string' && result.title.trim() ? result.title : undefined });\n  }\n  const seenSources = new Set();\n  const documents = bundle.documents.map((doc, index) => {\n    if (!doc || typeof doc !== 'object' || typeof doc.text !== 'string' || !doc.text.trim() || typeof doc.file_source !== 'string' || !doc.file_source.trim()) {\n      throw new Error(`Deduplicated document ${index} has invalid text/source alignment.`);\n    }\n    if (seenSources.has(doc.file_source)) throw new Error(`Deduplicated documents contain a repeated source at index ${index}.`);\n    seenSources.add(doc.file_source);\n    const match = metadataBySource.get(doc.file_source.split('#', 1)[0]);\n    return {\n      ...doc,\n      metadata: {\n        source_url: doc.file_source,\n        ...(match?.title ? { title: match.title } : {}),\n        query: bundle.prompt,\n        content_type: 'text/plain',\n      },\n    };\n  });\n  return { ...bundle, found: documents.length, documents };\n}\n\nfunction isDuplicateFailure(errorMessage) {\n  if (typeof errorMessage !== 'string') return false;\n  let failure;\n  try { failure = JSON.parse(errorMessage); } catch { return false; }\n  const statusCode = Number(failure?.status);\n  let body = failure?.responseBody;\n  if (typeof body === 'string') {\n    try { body = JSON.parse(body); } catch { return false; }\n  }\n  return statusCode === 409 && typeof body?.detail === 'string' &&\n    body.detail.startsWith('Document storage already contains');\n}\n\nfunction insertionOutcome(response, source, errorMessage) {\n  const code = Number(response?.statusCode ?? response?.status ?? 0);\n  const body = response?.body && typeof response.body === 'object' ? response.body : {};\n  const detail = typeof body.detail === 'string' ? body.detail : '';\n  if (code >= 200 && code < 300) {\n    if (body.status === 'success' && typeof body.track_id === 'string' && body.track_id) return { source, status: 'queued', track_id: body.track_id };\n    return { source, status: 'failed' };\n  }\n  if (code === 409 && detail.startsWith('Document storage already contains')) return { source, status: 'already_present' };\n  if (isDuplicateFailure(errorMessage)) return { source, status: 'already_present' };\n  return { source, status: 'failed' };\n}\n\nfunction summarizeInsertions(outcomes, { deadlineExceeded = false } = {}) {\n  if (!Array.isArray(outcomes)) throw new Error('Insertion outcomes must be an array.');\n  let queued = 0;\n  let alreadyPresent = 0;\n  const trackIds = [];\n  for (const outcome of outcomes) {\n    if (outcome?.status === 'queued' && typeof outcome.track_id === 'string' && outcome.track_id) {\n      queued++;\n      trackIds.push(outcome.track_id);\n    } else if (outcome?.status === 'already_present') alreadyPresent++;\n  }\n  const failed = outcomes.some((outcome) => outcome?.status === 'failed' || outcome?.status === 'not_attempted');\n  if (failed || deadlineExceeded) {\n    return {\n      httpStatus: 502,\n      status: 'error',\n      error: {\n        code: 'upstream_failure',\n        message: 'An upstream service failed during ingestion.',\n      },\n      queued,\n      alreadyPresent,\n      trackIds,\n    };\n  }\n  const hasNewWork = queued > 0;\n  return {\n    httpStatus: hasNewWork ? 202 : 200,\n    status: hasNewWork ? 'queued' : 'skipped',\n    message: hasNewWork\n      ? 'LightRAG accepted documents for background processing; ingestion is not complete yet.'\n      : 'All usable sources were already present in LightRAG; no new processing was queued.',\n    queued,\n    alreadyPresent,\n    trackIds,\n  };\n}\n\nfunction hasInsertionBudget(requestStart, now = Date.now()) {\n  const startSeconds = typeof requestStart === 'number' || typeof requestStart === 'string' ? Number(requestStart) : NaN;\n  if (!Number.isFinite(startSeconds) || startSeconds <= 0) return false;\n  const startMs = startSeconds * 1000;\n  if (startMs > now + 1000) return false;\n  return now < startMs + INSERTION_START_CUTOFF_MS;\n}\n\nmodule.exports = {\n  deduplicateResults,\n  hasInsertionBudget,\n  isDuplicateFailure,\n  insertionOutcome,\n  prepareGraphDocuments,\n  summarizeInsertions,\n  validatePrompt,\n  validateSearchResponse,\n};\n\nreturn module.exports.insertionOutcome(null, inputs.source, inputs.errorMessage);\n};"
+                                      },
+                                      "input": {
+                                        "source": "{{loop_pages['output'].item.file_source}}",
+                                        "errorMessage": "{{queue_page['error']['message']}}"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "onFailure": {
+                                "name": "record_not_attempted",
+                                "displayName": "Record insertion skipped at deadline",
+                                "valid": true,
+                                "type": "CODE",
+                                "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                                "settings": {
+                                  "sourceCode": {
+                                    "packageJson": "{}",
+                                    "code": "export const code = async (inputs) => ({source: inputs.source, status: 'not_attempted'});"
+                                  },
+                                  "input": {
+                                    "source": "{{loop_pages['output'].item.file_source}}"
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "nextAction": {
+                            "name": "summarize",
+                            "displayName": "Summarize accepted and failed pages",
+                            "valid": true,
+                            "type": "CODE",
+                            "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                            "settings": {
+                              "sourceCode": {
+                                "packageJson": "{}",
+                                "code": "export const code = async (inputs) => {\nconst module = { exports: {} };\n\n\nconst MAX_PROMPT_CHARS = 4000;\nconst MAX_RESULTS = 10;\nconst MAX_CONTENT_CHARS = 500000;\nconst INSERTION_START_CUTOFF_MS = 20000;\n\nfunction validatePrompt(input) {\n  const body = input?.body ?? input;\n  const prompt = body?.prompt;\n  if (typeof prompt !== 'string' || !prompt.trim()) throw new Error('Request body must include a non-empty prompt string.');\n  if (prompt.trim().length > MAX_PROMPT_CHARS) throw new Error('prompt must be at most 4000 characters.');\n  const maxResults = body.maxResults === undefined ? 5 : body.maxResults;\n  if (typeof maxResults !== 'number' || !Number.isInteger(maxResults) || maxResults < 1 || maxResults > MAX_RESULTS) {\n    throw new Error('maxResults must be an integer from 1 to 10.');\n  }\n  return { prompt: prompt.trim(), maxResults };\n}\n\nfunction validHttpUrl(value) {\n  const source = value.trim().split('#', 1)[0];\n  if (!/^https?:\\/\\/[^\\s/?#@]+(?:[/?#]|$)/i.test(source) || /[\\u0000-\\u0020\\u007f]/u.test(source)) return null;\n  return source;\n}\n\nfunction validateSearchResponse(response) {\n  if (!response || typeof response !== 'object' || Array.isArray(response)) throw new Error('Tavily returned a malformed response object.');\n  if (response.error !== undefined && response.error !== null && response.error !== '') throw new Error('Tavily search failed.');\n  if (!Array.isArray(response.results)) throw new Error('Tavily response must contain a results array.');\n  if (response.results.length > MAX_RESULTS) throw new Error('Tavily returned too many results.');\n  const results = [];\n  const reasons = {};\n  const reject = (reason) => { reasons[reason] = (reasons[reason] ?? 0) + 1; };\n  const hasLetterOrNumber = /[\\p{L}\\p{N}]/u;\n  const denialOnly = /^(?:access denied|access forbidden|403 forbidden|you have been blocked|request blocked|website unavailable|page unavailable|service unavailable|404 not found|page not found|this site can(?:not|\\x27t) be reached|the site can(?:not|\\x27t) be reached|robot check|captcha required|enable javascript and cookies to continue)[.!\\s]*$/i;\n  for (const result of response.results) {\n    if (!result || typeof result !== 'object' || Array.isArray(result)) { reject('malformed_result'); continue; }\n    if (typeof result.raw_content !== 'string' || !result.raw_content.trim()) { reject('missing_raw_content'); continue; }\n    if (result.raw_content.length > MAX_CONTENT_CHARS) { reject('raw_content_too_large'); continue; }\n    if (typeof result.url !== 'string' || !validHttpUrl(result.url)) { reject('invalid_url'); continue; }\n    if (/^(?:<!doctype\\s+html\\b|<html\\b)/i.test(result.raw_content.trimStart())) { reject('html_page'); continue; }\n    const trimmed = result.raw_content.trim();\n    if (!hasLetterOrNumber.test(trimmed)) { reject('no_alphanumeric_content'); continue; }\n    if (trimmed.length <= 300 && denialOnly.test(trimmed)) { reject('access_denied_or_error_page'); continue; }\n    results.push(result);\n  }\n  const rejected = Object.values(reasons).reduce((sum, count) => sum + count, 0);\n  return { ...response, results, validation: { received: response.results.length, accepted: results.length, rejected, reasons } };\n}\n\nfunction deduplicateResults(results, prompt) {\n  if (!Array.isArray(results)) throw new Error('Validated search results must be an array.');\n  const seen = new Set();\n  const seenUrls = new Set();\n  const documents = [];\n  for (const result of results) {\n    if (!result || typeof result.raw_content !== 'string' || !result.raw_content.trim() || result.raw_content.length > MAX_CONTENT_CHARS || typeof result.url !== 'string') continue;\n    const source = validHttpUrl(result.url);\n    if (!source || seenUrls.has(source)) continue;\n    const text = result.raw_content.normalize('NFKC').replace(/\\s+/gu, ' ').trim();\n    if (!text || seen.has(text)) continue;\n    seen.add(text);\n    seenUrls.add(source);\n    documents.push({ text, file_source: source });\n  }\n  return { documents, prompt, found: documents.length };\n}\n\nfunction prepareGraphDocuments(bundle, validatedSearch) {\n  if (!bundle || typeof bundle !== 'object' || Array.isArray(bundle)) throw new Error('Deduplication step returned a malformed document bundle.');\n  if (!Array.isArray(bundle.documents)) throw new Error('Deduplication step must return a documents array.');\n  if (!validatedSearch || !Array.isArray(validatedSearch.results)) throw new Error('Validated search results are unavailable for metadata mapping.');\n  const metadataBySource = new Map();\n  for (const result of validatedSearch.results) {\n    if (!result || typeof result.url !== 'string') continue;\n    const source = result.url.trim().split('#', 1)[0];\n    if (!metadataBySource.has(source)) metadataBySource.set(source, { title: typeof result.title === 'string' && result.title.trim() ? result.title : undefined });\n  }\n  const seenSources = new Set();\n  const documents = bundle.documents.map((doc, index) => {\n    if (!doc || typeof doc !== 'object' || typeof doc.text !== 'string' || !doc.text.trim() || typeof doc.file_source !== 'string' || !doc.file_source.trim()) {\n      throw new Error(`Deduplicated document ${index} has invalid text/source alignment.`);\n    }\n    if (seenSources.has(doc.file_source)) throw new Error(`Deduplicated documents contain a repeated source at index ${index}.`);\n    seenSources.add(doc.file_source);\n    const match = metadataBySource.get(doc.file_source.split('#', 1)[0]);\n    return {\n      ...doc,\n      metadata: {\n        source_url: doc.file_source,\n        ...(match?.title ? { title: match.title } : {}),\n        query: bundle.prompt,\n        content_type: 'text/plain',\n      },\n    };\n  });\n  return { ...bundle, found: documents.length, documents };\n}\n\nfunction isDuplicateFailure(errorMessage) {\n  if (typeof errorMessage !== 'string') return false;\n  let failure;\n  try { failure = JSON.parse(errorMessage); } catch { return false; }\n  const statusCode = Number(failure?.status);\n  let body = failure?.responseBody;\n  if (typeof body === 'string') {\n    try { body = JSON.parse(body); } catch { return false; }\n  }\n  return statusCode === 409 && typeof body?.detail === 'string' &&\n    body.detail.startsWith('Document storage already contains');\n}\n\nfunction insertionOutcome(response, source, errorMessage) {\n  const code = Number(response?.statusCode ?? response?.status ?? 0);\n  const body = response?.body && typeof response.body === 'object' ? response.body : {};\n  const detail = typeof body.detail === 'string' ? body.detail : '';\n  if (code >= 200 && code < 300) {\n    if (body.status === 'success' && typeof body.track_id === 'string' && body.track_id) return { source, status: 'queued', track_id: body.track_id };\n    return { source, status: 'failed' };\n  }\n  if (code === 409 && detail.startsWith('Document storage already contains')) return { source, status: 'already_present' };\n  if (isDuplicateFailure(errorMessage)) return { source, status: 'already_present' };\n  return { source, status: 'failed' };\n}\n\nfunction summarizeInsertions(outcomes, { deadlineExceeded = false } = {}) {\n  if (!Array.isArray(outcomes)) throw new Error('Insertion outcomes must be an array.');\n  let queued = 0;\n  let alreadyPresent = 0;\n  const trackIds = [];\n  for (const outcome of outcomes) {\n    if (outcome?.status === 'queued' && typeof outcome.track_id === 'string' && outcome.track_id) {\n      queued++;\n      trackIds.push(outcome.track_id);\n    } else if (outcome?.status === 'already_present') alreadyPresent++;\n  }\n  const failed = outcomes.some((outcome) => outcome?.status === 'failed' || outcome?.status === 'not_attempted');\n  if (failed || deadlineExceeded) {\n    return {\n      httpStatus: 502,\n      status: 'error',\n      error: {\n        code: 'upstream_failure',\n        message: 'An upstream service failed during ingestion.',\n      },\n      queued,\n      alreadyPresent,\n      trackIds,\n    };\n  }\n  const hasNewWork = queued > 0;\n  return {\n    httpStatus: hasNewWork ? 202 : 200,\n    status: hasNewWork ? 'queued' : 'skipped',\n    message: hasNewWork\n      ? 'LightRAG accepted documents for background processing; ingestion is not complete yet.'\n      : 'All usable sources were already present in LightRAG; no new processing was queued.',\n    queued,\n    alreadyPresent,\n    trackIds,\n  };\n}\n\nfunction hasInsertionBudget(requestStart, now = Date.now()) {\n  const startSeconds = typeof requestStart === 'number' || typeof requestStart === 'string' ? Number(requestStart) : NaN;\n  if (!Number.isFinite(startSeconds) || startSeconds <= 0) return false;\n  const startMs = startSeconds * 1000;\n  if (startMs > now + 1000) return false;\n  return now < startMs + INSERTION_START_CUTOFF_MS;\n}\n\nmodule.exports = {\n  deduplicateResults,\n  hasInsertionBudget,\n  isDuplicateFailure,\n  insertionOutcome,\n  prepareGraphDocuments,\n  summarizeInsertions,\n  validatePrompt,\n  validateSearchResponse,\n};\n\nconst iterations = inputs.iterations || [];\nconst outcomes = iterations.map((row) => row.record_outcome?.output ?? row.record_failed?.output ?? row.record_not_attempted?.output ?? {status: 'failed'});\nreturn module.exports.summarizeInsertions(outcomes);\n};"
+                              },
+                              "input": {
+                                "iterations": "{{loop_pages['output'].iterations}}"
+                              }
+                            },
+                            "nextAction": {
+                              "name": "public_response",
+                              "displayName": "Project public response",
+                              "valid": true,
+                              "type": "CODE",
+                              "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                              "settings": {
+                                "sourceCode": {
+                                  "packageJson": "{}",
+                                  "code": "export const code = async (inputs) => {\nconst result = inputs.result || {}; const {httpStatus, ...body} = result;\nreturn {statusCode: Number(httpStatus) || 502, body};\n};"
+                                },
+                                "input": {
+                                  "result": "{{summarize['output']}}"
+                                }
+                              },
+                              "nextAction": {
+                                "name": "return_response",
+                                "displayName": "Return ingestion response",
+                                "valid": true,
+                                "type": "PIECE",
+                                "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                                "settings": {
+                                  "pieceName": "@activepieces/piece-webhook",
+                                  "pieceVersion": "0.1.42",
+                                  "actionName": "return_response",
+                                  "propertySettings": {},
+                                  "input": {
+                                    "responseType": "json",
+                                    "fields": {
+                                      "status": "{{public_response['output'].statusCode}}",
+                                      "body": "{{public_response['output'].body}}"
+                                    },
+                                    "respond": "stop"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "onFailure": {
+                          "name": "search_response_failed",
+                          "displayName": "Search Response Failed",
+                          "valid": true,
+                          "type": "CODE",
+                          "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                          "settings": {
+                            "sourceCode": {
+                              "packageJson": "{}",
+                              "code": "export const code = async () => ({httpStatus: 502, status: 'error', error: {code: 'upstream_failure', message: 'An upstream service failed during ingestion.'}, queued: 0, alreadyPresent: 0, trackIds: []});"
+                            },
+                            "input": {}
+                          },
+                          "nextAction": {
+                            "name": "public_response_search_response_failed",
+                            "displayName": "Project public response",
+                            "valid": true,
+                            "type": "CODE",
+                            "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                            "settings": {
+                              "sourceCode": {
+                                "packageJson": "{}",
+                                "code": "export const code = async (inputs) => {\nconst result = inputs.result || {}; const {httpStatus, ...body} = result;\nreturn {statusCode: Number(httpStatus) || 502, body};\n};"
+                              },
+                              "input": {
+                                "result": "{{search_response_failed['output']}}"
+                              }
+                            },
+                            "nextAction": {
+                              "name": "return_response_search_response_failed",
+                              "displayName": "Return ingestion response",
+                              "valid": true,
+                              "type": "PIECE",
+                              "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                              "settings": {
+                                "pieceName": "@activepieces/piece-webhook",
+                                "pieceVersion": "0.1.42",
+                                "actionName": "return_response",
+                                "propertySettings": {},
+                                "input": {
+                                  "responseType": "json",
+                                  "fields": {
+                                    "status": "{{public_response_search_response_failed['output'].statusCode}}",
+                                    "body": "{{public_response_search_response_failed['output'].body}}"
+                                  },
+                                  "respond": "stop"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "onFailure": {
+                      "name": "search_failed",
+                      "displayName": "Search Failed",
+                      "valid": true,
+                      "type": "CODE",
+                      "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                      "settings": {
+                        "sourceCode": {
+                          "packageJson": "{}",
+                          "code": "export const code = async () => ({httpStatus: 502, status: 'error', error: {code: 'upstream_failure', message: 'An upstream service failed during ingestion.'}, queued: 0, alreadyPresent: 0, trackIds: []});"
+                        },
+                        "input": {}
+                      },
+                      "nextAction": {
+                        "name": "public_response_search_failed",
+                        "displayName": "Project public response",
+                        "valid": true,
+                        "type": "CODE",
+                        "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                        "settings": {
+                          "sourceCode": {
+                            "packageJson": "{}",
+                            "code": "export const code = async (inputs) => {\nconst result = inputs.result || {}; const {httpStatus, ...body} = result;\nreturn {statusCode: Number(httpStatus) || 502, body};\n};"
+                          },
+                          "input": {
+                            "result": "{{search_failed['output']}}"
+                          }
+                        },
+                        "nextAction": {
+                          "name": "return_response_search_failed",
+                          "displayName": "Return ingestion response",
+                          "valid": true,
+                          "type": "PIECE",
+                          "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                          "settings": {
+                            "pieceName": "@activepieces/piece-webhook",
+                            "pieceVersion": "0.1.42",
+                            "actionName": "return_response",
+                            "propertySettings": {},
+                            "input": {
+                              "responseType": "json",
+                              "fields": {
+                                "status": "{{public_response_search_failed['output'].statusCode}}",
+                                "body": "{{public_response_search_failed['output'].body}}"
+                              },
+                              "respond": "stop"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "onFailure": {
+                  "name": "invalid_input",
+                  "displayName": "Invalid Input",
+                  "valid": true,
+                  "type": "CODE",
+                  "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                  "settings": {
+                    "sourceCode": {
+                      "packageJson": "{}",
+                      "code": "export const code = async () => ({httpStatus: 400, status: 'error', error: {code: 'invalid_input', message: 'Invalid request input.'}, queued: 0, alreadyPresent: 0, trackIds: []});"
+                    },
+                    "input": {}
+                  },
+                  "nextAction": {
+                    "name": "public_response_invalid_input",
+                    "displayName": "Project public response",
+                    "valid": true,
+                    "type": "CODE",
+                    "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                    "settings": {
+                      "sourceCode": {
+                        "packageJson": "{}",
+                        "code": "export const code = async (inputs) => {\nconst result = inputs.result || {}; const {httpStatus, ...body} = result;\nreturn {statusCode: Number(httpStatus) || 502, body};\n};"
+                      },
+                      "input": {
+                        "result": "{{invalid_input['output']}}"
+                      }
+                    },
+                    "nextAction": {
+                      "name": "return_response_invalid_input",
+                      "displayName": "Return ingestion response",
+                      "valid": true,
+                      "type": "PIECE",
+                      "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                      "settings": {
+                        "pieceName": "@activepieces/piece-webhook",
+                        "pieceVersion": "0.1.42",
+                        "actionName": "return_response",
+                        "propertySettings": {},
+                        "input": {
+                          "responseType": "json",
+                          "fields": {
+                            "status": "{{public_response_invalid_input['output'].statusCode}}",
+                            "body": "{{public_response_invalid_input['output'].body}}"
+                          },
+                          "respond": "stop"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "onFailure": {
+              "name": "method_not_allowed",
+              "displayName": "Method Not Allowed",
+              "valid": true,
+              "type": "CODE",
+              "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+              "settings": {
+                "sourceCode": {
+                  "packageJson": "{}",
+                  "code": "export const code = async () => ({httpStatus: 405, status: 'error', error: {code: 'method_not_allowed', message: 'Only POST requests are allowed.'}, queued: 0, alreadyPresent: 0, trackIds: []});"
+                },
+                "input": {}
+              },
+              "nextAction": {
+                "name": "public_response_method",
+                "displayName": "Project public response",
+                "valid": true,
+                "type": "CODE",
+                "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                "settings": {
+                  "sourceCode": {
+                    "packageJson": "{}",
+                    "code": "export const code = async (inputs) => {\nconst result = inputs.result || {}; const {httpStatus, ...body} = result;\nreturn {statusCode: Number(httpStatus) || 502, body};\n};"
+                  },
+                  "input": {
+                    "result": "{{method_not_allowed['output']}}"
+                  }
+                },
+                "nextAction": {
+                  "name": "return_response_method",
+                  "displayName": "Return ingestion response",
+                  "valid": true,
+                  "type": "PIECE",
+                  "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                  "settings": {
+                    "pieceName": "@activepieces/piece-webhook",
+                    "pieceVersion": "0.1.42",
+                    "actionName": "return_response",
+                    "propertySettings": {},
+                    "input": {
+                      "responseType": "json",
+                      "fields": {
+                        "status": "{{public_response_method['output'].statusCode}}",
+                        "body": "{{public_response_method['output'].body}}"
+                      },
+                      "respond": "stop"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "agentIds": [],
+      "connectionIds": [],
+      "notes": []
+    }
+  ]
+}

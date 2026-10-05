@@ -29,15 +29,34 @@ services:
       timeout: 5s
       retries: 10
 
+  activepieces-gateway:
+    image: nginx:1.27.5-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${ACTIVEPIECES_PORT:-8080}:${ACTIVEPIECES_PORT:-8080}"
+    environment:
+      AP_GATEWAY_PORT: ${ACTIVEPIECES_PORT:-8080}
+      NGINX_ENVSUBST_FILTER: AP_GATEWAY_PORT
+    volumes:
+      - ./activepieces/nginx.conf:/etc/nginx/templates/default.conf.template:ro
+    networks:
+      activepieces_gateway: {}
+      activepieces_internal:
+        aliases:
+          - activepieces.localhost
+    depends_on:
+      activepieces-app:
+        condition: service_started
+
   activepieces-app:
     image: ghcr.io/activepieces/activepieces:0.92.1@sha256:d22e3f36f78d70264a020d309aa4535c161ba9ee25eeb783759cde3308cd803a
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:${ACTIVEPIECES_PORT:-8080}:80"
     environment: &activepieces_environment
       AP_CONTAINER_TYPE: APP
       AP_ENVIRONMENT: prod
-      AP_FRONTEND_URL: ${AP_FRONTEND_URL:-http://localhost:8080}
+      AP_CLOUD_AUTH_ENABLED: "false"
+      AP_FRONTEND_URL: ${AP_FRONTEND_URL:-http://activepieces.localhost:8080}
+      AP_INTERNAL_URL: http://activepieces-app
       AP_ENCRYPTION_KEY: ${AP_ENCRYPTION_KEY:?Run python3 scripts/add_activepieces_env.py}
       AP_JWT_SECRET: ${AP_JWT_SECRET:?Run python3 scripts/add_activepieces_env.py}
       AP_EXECUTION_MODE: SANDBOX_CODE_ONLY
@@ -66,7 +85,6 @@ services:
     environment:
       <<: *activepieces_environment
       AP_CONTAINER_TYPE: WORKER
-      AP_FRONTEND_URL: http://activepieces-app
       AP_WORKER_CONCURRENCY: ${AP_WORKER_CONCURRENCY:-1}
     volumes:
       - activepieces_cache:/usr/src/app/cache
@@ -80,6 +98,9 @@ services:
 networks:
   activepieces_internal:
     internal: true
+  activepieces_gateway:
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: "false"
 
 volumes:
   activepieces_postgres_data:
