@@ -68,6 +68,7 @@ OpenAI-compatible local alternatives can be configured.
 - [Import content with n8n](#n8n-automations)
 - [Troubleshoot the connection](#verify-the-connection)
 - [Manage persistence and backups](#persistence-and-backups)
+- [Enable the experimental GPU decision tool](docs/kev-decision-setup.md) and [inspect its validation evidence](docs/kev-validation.md)
 
 The normal workflow is **collect documents → index in LightRAG → ask in
 LibreChat → inspect the cited sources**. n8n is optional for collecting content;
