@@ -1,0 +1,50 @@
+# Combine with the base and AP overlay using a fresh --env-file and project.
+services:
+  admin-panel:
+    profiles: [outside-e2e]
+    ports: !reset []
+    env_file: !reset []
+  mock-integrations:
+    image: python:3.12-slim@sha256:02108f5d322dd89f1c9e552442c25acb0543dfdbc455693a5599624f20d9155d
+    command: [python, /srv/mock_server.py]
+    environment:
+      PORT: "9621"
+      LIGHTRAG_API_KEY: e2e-lightrag-key
+      TAVILY_API_KEY: e2e-tavily-key
+      GOOGLE_ACCESS_TOKEN: e2e-google-token
+      GOOGLE_REDIRECT_URI: ${AP_FRONTEND_URL:-http://activepieces.localhost:8080}/redirect
+    volumes:
+      - ./tests/e2e/mock_server.py:/srv/mock_server.py:ro
+    ports:
+      - "127.0.0.1:19621:9621"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks:
+      activepieces_internal:
+        ipv4_address: 192.168.176.10
+      mock_control: {}
+  activepieces-app:
+    environment:
+      AP_SSRF_ALLOW_LIST: 192.168.176.10
+  activepieces-worker:
+    environment:
+      AP_SSRF_ALLOW_LIST: 192.168.176.10
+      AP_NETWORK_MODE: STRICT
+  activepieces-postgres:
+    networks:
+      activepieces_internal:
+        aliases: [activepieces-postgres]
+  activepieces-redis:
+    networks:
+      activepieces_internal:
+        aliases: [activepieces-redis]
+networks:
+  activepieces_internal:
+    ipam:
+      config:
+        - subnet: 192.168.176.0/20
+  mock_control:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: "false"

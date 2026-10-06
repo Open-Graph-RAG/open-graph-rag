@@ -4,6 +4,9 @@
 
 # Open Graph RAG
 
+The [Activepieces migration and recovery plan](docs/activepieces-migration.md)
+tracks replacement acceptance and cutover. Keep n8n running until its gates pass.
+
 LibreChat + LightRAG + n8n + PostgreSQL + MCP
 
 A shared knowledge base stack. LibreChat provides the chat interface; LightRAG
@@ -456,6 +459,51 @@ python3 -m venv .venv
 .venv/bin/pip install -r mcp/requirements.lock
 .venv/bin/python -m unittest discover -s mcp/tests -v
 ```
+
+## Continuous integration
+
+Every pull request and push to `main` runs two checks: `unit-tests` protects
+the bridge, ingestion workflows, environment migration and E2E isolation guards;
+`config-integrity` checks generated exports and all four Compose configurations.
+CI uses Python 3.12, Node 24 and pinned Python dependencies. It needs no secrets
+and starts no services or provider requests.
+
+Run the unit checks locally:
+
+```sh
+python3 -m venv .venv
+.venv/bin/pip install -r tests/requirements-ci.txt
+node --test activepieces/helpers.test.cjs activepieces/workflows.test.cjs n8n/tests/*.test.cjs
+.venv/bin/python -m unittest discover -s mcp/tests -v
+.venv/bin/python -m unittest discover -s scripts/tests -v
+.venv/bin/python -m unittest discover -s tests/e2e -p 'test_*.py' -v
+```
+
+Run configuration checks from a disposable checkout. Generate its ignored
+`.env` with `python3 scripts/init_env.py`; never replace an existing developer
+environment. Use a current Docker Compose plugin with `!reset` support:
+
+```sh
+python3 activepieces/generate_workflows.py --check
+docker compose -f compose.yaml config --quiet
+docker compose -f compose.yaml -f compose.activepieces.yaml config --quiet
+docker compose -f compose.yaml -f compose.activepieces.yaml -f tests/e2e/compose.mock.yaml config --quiet
+docker compose -f compose.yaml -f compose.activepieces.yaml -f tests/e2e/compose.local.yaml config --quiet
+```
+
+Require `unit-tests` and `config-integrity` in the repository's rules for `main`.
+Passing CI verifies offline contracts, not running service compatibility or
+successful indexing. Live smoke tests and the Activepieces production cutover
+gates remain separate checks.
+
+## Activepieces replacement
+
+The optional Activepieces 0.92.1 stack and generated ingestion templates are
+being verified before cutover. Keep n8n and existing webhook callers active
+until the [acceptance and recovery gates](docs/activepieces-migration.md) pass.
+Use the [Activepieces setup and import instructions](activepieces/README.md)
+for the additive environment migration, optional Compose services, sanitized
+imports and isolated tests. Starting those services does not switch traffic.
 
 ## Official references
 

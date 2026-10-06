@@ -43,12 +43,34 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
                 await server.knowledge_search("A valid question")
         self.assertNotIn("PRIVATE", str(raised.exception))
 
+    async def test_timeout_does_not_leak_upstream_details(self):
+        def upstream(request):
+            raise httpx.ReadTimeout("PRIVATE TIMEOUT DETAIL", request=request)
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(upstream))
+        with patch.object(server.httpx, "AsyncClient", return_value=client):
+            with self.assertRaisesRegex(ValueError, "LightRAG timed out") as raised:
+                await server.knowledge_search("A valid question")
+        self.assertNotIn("PRIVATE", str(raised.exception))
+
     async def test_mcp_auth_initialize_tools_and_validation(self):
         transport = httpx.ASGITransport(app=server.app)
         async with server.mcp.session_manager.run():
             async with httpx.AsyncClient(transport=transport, base_url="http://mcp:8000") as client:
                 self.assertEqual((await client.get("/health")).status_code, 200)
                 self.assertEqual((await client.post("/mcp", json={})).status_code, 401)
+                with patch.object(server.httpx, "AsyncClient") as upstream_client:
+                    response = await client.post("/mcp", headers={
+                        "Authorization": "Bearer incorrect-token",
+                        "Accept": "application/json, text/event-stream",
+                    }, json={
+                        "jsonrpc": "2.0", "id": 0, "method": "tools/call",
+                        "params": {"name": "knowledge_search", "arguments": {
+                            "query": "A valid question",
+                        }},
+                    })
+                    self.assertEqual(response.status_code, 401)
+                    upstream_client.assert_not_called()
                 client.headers.update({
                     "Authorization": "Bearer " + server.MCP_TOKEN,
                     "Accept": "application/json, text/event-stream",
@@ -81,13 +103,19 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
                 self.assertFalse(result.get("isError", False))
                 evidence = result.get("structuredContent") or json.loads(result["content"][0]["text"])
                 self.assertEqual(evidence["data"]["references"][0]["file_path"], "demo-acme.txt")
-                for arguments in ({"query": "ok", "top_k": 200},
+                for arguments in ({"query": "ok"}, {"query": "x" * 4001},
+                                  {"query": "valid question", "top_k": 0},
+                                  {"query": "valid question", "top_k": 31},
                                   {"query": "valid question", "mode": "bypass"}):
-                    response = await client.post("/mcp", json={
-                        "jsonrpc": "2.0", "id": 3, "method": "tools/call",
-                        "params": {"name": "knowledge_search", "arguments": arguments},
-                    })
-                    self.assertTrue(response.json()["result"]["isError"])
+                    with self.subTest(arguments=arguments):
+                        with patch.object(server.httpx, "AsyncClient") as upstream_client:
+                            response = await client.post("/mcp", json={
+                                "jsonrpc": "2.0", "id": 3, "method": "tools/call",
+                                "params": {"name": "knowledge_search", "arguments": arguments},
+                            })
+                            self.assertEqual(response.status_code, 200)
+                            self.assertTrue(response.json()["result"]["isError"])
+                            upstream_client.assert_not_called()
                 response = await client.post("/mcp", headers={"Host": "evil.example"}, json={
                     "jsonrpc": "2.0", "id": 4, "method": "tools/list", "params": {},
                 })

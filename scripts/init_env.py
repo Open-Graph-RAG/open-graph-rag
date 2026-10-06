@@ -12,6 +12,8 @@ lengths = {
     "LIGHTRAG_API_KEY": 32, "MCP_TOKEN": 32,
     "CREDS_KEY": 32, "CREDS_IV": 16,
     "JWT_SECRET": 48, "JWT_REFRESH_SECRET": 48,
+    "AP_POSTGRES_PASSWORD": 32, "AP_ENCRYPTION_KEY": 16,
+    "AP_JWT_SECRET": 32,
 }
 for key, size in lengths.items():
     content = content.replace(f"{key}=GENERATE", f"{key}={secrets.token_hex(size)}")

@@ -1,0 +1,69 @@
+# Explicitly select services; do not start legacy n8n or the mock fixture.
+services:
+  admin-panel:
+    profiles: [outside-e2e]
+    ports: !reset []
+    env_file: !reset []
+  mongodb:
+    volumes:
+      - mongo_config:/data/configdb
+  n8n:
+    profiles: [legacy-only]
+  ollama:
+    # LibreChat reaches models on tools_api; LightRAG reaches them on knowledge_api.
+    networks: [knowledge_api, tools_api]
+    ports: ["127.0.0.1:11435:11434"]
+    environment:
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_KEEP_ALIVE: "10m"
+      OLLAMA_CONTEXT_LENGTH: "4096"
+    mem_limit: 4g
+  ollama-local-init:
+    image: ollama/ollama:0.34.2@sha256:c715bebf769913db6c82d96f8a8dfee989c4bdfe19fa7d700e3d41ee0ceb5461
+    restart: "no"
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        for model in qwen2.5:3b bge-m3; do
+          ollama pull "$$model"
+          ollama show "$$model" --modelfile | sed "s|^FROM .*|FROM $$model|" > /tmp/local-model.Modelfile
+          printf '\nPARAMETER num_thread 4\n' >> /tmp/local-model.Modelfile
+          ollama create "$$model" -f /tmp/local-model.Modelfile
+        done
+    networks: [knowledge_api]
+    depends_on:
+      ollama:
+        condition: service_healthy
+  lightrag:
+    environment:
+      LLM_BINDING_HOST: http://ollama:11434/v1
+      LLM_BINDING_API_KEY: ollama
+      LLM_MODEL: qwen2.5:3b
+      # Bound local CPU extraction output; supported by the pinned OpenAI binding.
+      OPENAI_LLM_MAX_TOKENS: "768"
+      WORKSPACE: ap_e2e_engine_v4
+      EMBEDDING_BINDING_HOST: http://ollama:11434/v1
+      EMBEDDING_BINDING_API_KEY: ollama
+      EMBEDDING_MODEL: bge-m3
+      MAX_ASYNC_LLM: "1"
+      MAX_PARALLEL_INSERT: "1"
+      EMBEDDING_FUNC_MAX_ASYNC: "1"
+      EMBEDDING_BATCH_NUM: "1"
+    depends_on:
+      ollama-local-init:
+        condition: service_completed_successfully
+  mcp:
+    ports: ["127.0.0.1:18000:8000"]
+  librechat:
+    environment:
+      ENDPOINTS: custom,agents
+      OPENAI_API_KEY: ollama
+      OPENAI_REVERSE_PROXY: http://ollama:11434/v1
+      OPENAI_MODELS: qwen2.5:3b
+    volumes:
+      - ./tests/e2e/librechat.local.yaml:/app/librechat.yaml:ro
+volumes:
+  mongo_config:

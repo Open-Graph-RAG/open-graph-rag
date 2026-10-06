@@ -1,0 +1,582 @@
+{
+  "schemaVersion": "27",
+  "flows": [
+    {
+      "displayName": "NotebookLM Google Doc to LightRAG",
+      "description": "Exports a Google Doc as plain text and queues it in LightRAG.",
+      "valid": false,
+      "schemaVersion": "27",
+      "trigger": {
+        "name": "trigger",
+        "displayName": "Authenticated JSON webhook",
+        "valid": true,
+        "type": "PIECE_TRIGGER",
+        "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+        "settings": {
+          "pieceName": "@activepieces/piece-webhook",
+          "pieceVersion": "0.1.42",
+          "triggerName": "catch_webhook",
+          "propertySettings": {},
+          "input": {
+            "authType": "header",
+            "authFields": {
+              "headerName": "X-Ingest-Token",
+              "headerValue": "CONFIGURE_INCOMING_TOKEN"
+            }
+          }
+        },
+        "nextAction": {
+          "name": "validate_method",
+          "displayName": "Require POST request",
+          "valid": true,
+          "type": "CODE",
+          "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+          "settings": {
+            "sourceCode": {
+              "packageJson": "{}",
+              "code": "export const code = async (inputs) => {\nif (String(inputs.method || '').toUpperCase() !== 'POST') throw new Error('method not allowed');\nreturn {allowed: true};\n};"
+            },
+            "input": {
+              "method": "{{trigger['output'].method}}"
+            },
+            "errorHandlingOptions": {
+              "continueOnFailure": {
+                "value": true
+              },
+              "retryOnFailure": {
+                "value": false
+              }
+            }
+          },
+          "continueOnFailureBranches": {
+            "onSuccess": {
+              "name": "validate_request",
+              "displayName": "Validate Google Doc request",
+              "valid": true,
+              "type": "CODE",
+              "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+              "settings": {
+                "sourceCode": {
+                  "packageJson": "{}",
+                  "code": "export const code = async (inputs) => {\nconst module = { exports: {} };\n\n\nfunction validateDocumentRequest(input) {\n  const body = input?.body ?? input;\n  const driveFileId = body?.driveFileId;\n  if (typeof driveFileId !== 'string' || !/^[A-Za-z0-9_-]{10,200}$/.test(driveFileId)) throw new Error('driveFileId must be a valid Google Drive file ID.');\n  const notebook = body.notebook === undefined ? '' : body.notebook;\n  if (typeof notebook !== 'string' || notebook.length > 500) throw new Error('notebook must be a string of at most 500 characters.');\n  return {\n    driveFileId,\n    notebook: notebook.trim(),\n    file_source: `https://docs.google.com/document/d/${driveFileId}/edit`,\n  };\n}\n\nfunction validateExport(response, request) {\n  if (!response || !request) throw new Error('Google Drive export response or request is unavailable.');\n  const code = Number(response.statusCode ?? response.status);\n  if (!Number.isInteger(code) || code < 200 || code >= 300) throw new Error('Google Drive export failed.');\n  if (typeof response.body !== 'string' || !response.body.trim()) throw new Error('Google Drive returned an empty or non-text export. Ensure the file is a Google Doc exported from NotebookLM.');\n  if (response.body.length > 500000) throw new Error('Exported text exceeds the 500000-character limit.');\n  return { text: response.body, file_source: request.file_source, notebook: request.notebook };\n}\n\nfunction isDuplicateFailure(errorMessage) {\n  if (typeof errorMessage !== 'string') return false;\n  let failure;\n  try { failure = JSON.parse(errorMessage); } catch { return false; }\n  const statusCode = Number(failure?.status);\n  let body = failure?.responseBody;\n  if (typeof body === 'string') {\n    try { body = JSON.parse(body); } catch { return false; }\n  }\n  return statusCode === 409 && typeof body?.detail === 'string' &&\n    body.detail.startsWith('Document storage already contains');\n}\n\nfunction summarizeIngestion(response, fileSource, errorMessage) {\n  const code = Number(response?.statusCode ?? response?.status ?? 0);\n  const body = response?.body && typeof response.body === 'object' ? response.body : {};\n  const detail = typeof body.detail === 'string' ? body.detail : '';\n  if (code >= 200 && code < 300) {\n    if (body.status !== 'success' || typeof body.track_id !== 'string' || !body.track_id) {\n      return {\n        httpStatus: 502,\n        status: 'error',\n        error: { code: 'upstream_failure', message: 'An upstream service failed during ingestion.' },\n        queued: 0,\n        alreadyPresent: 0,\n        trackIds: [],\n      };\n    }\n    return {\n      httpStatus: 202,\n      status: 'queued',\n      message: 'LightRAG accepted the document for background processing; ingestion is not complete yet.',\n      file_source: fileSource,\n      queued: 1,\n      alreadyPresent: 0,\n      track_id: body.track_id,\n    };\n  }\n  if (code === 409 && detail.startsWith('Document storage already contains')) {\n    return {\n      httpStatus: 200,\n      status: 'already_present',\n      message: 'This source is already present in LightRAG.',\n      file_source: fileSource,\n      queued: 0,\n      alreadyPresent: 1,\n    };\n  }\n  if (isDuplicateFailure(errorMessage)) {\n    return {\n      httpStatus: 200,\n      status: 'already_present',\n      message: 'This source is already present in LightRAG.',\n      file_source: fileSource,\n      queued: 0,\n      alreadyPresent: 1,\n    };\n  }\n  return {\n    httpStatus: 502,\n    status: 'error',\n    error: { code: 'upstream_failure', message: 'An upstream service failed during ingestion.' },\n    queued: 0,\n    alreadyPresent: 0,\n    trackIds: [],\n  };\n}\n\nmodule.exports = { isDuplicateFailure, summarizeIngestion, validateDocumentRequest, validateExport };\n\nreturn module.exports.validateDocumentRequest(inputs.body);\n};"
+                },
+                "input": {
+                  "body": "{{trigger['output'].body}}"
+                },
+                "errorHandlingOptions": {
+                  "continueOnFailure": {
+                    "value": true
+                  },
+                  "retryOnFailure": {
+                    "value": false
+                  }
+                }
+              },
+              "continueOnFailureBranches": {
+                "onSuccess": {
+                  "name": "export_google_doc",
+                  "displayName": "Export Google Doc as text",
+                  "valid": true,
+                  "type": "PIECE",
+                  "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                  "settings": {
+                    "pieceName": "@activepieces/piece-http-oauth2",
+                    "pieceVersion": "0.3.0",
+                    "actionName": "send-oauth2-request",
+                    "propertySettings": {},
+                    "input": {
+                      "method": "GET",
+                      "url": "https://www.googleapis.com/drive/v3/files/{{validate_request['output'].driveFileId}}/export",
+                      "headers": {
+                        "Accept": "text/plain"
+                      },
+                      "queryParams": {
+                        "mimeType": "text/plain"
+                      },
+                      "body_type": "none",
+                      "timeout": 5,
+                      "failsafe": false,
+                      "use_proxy": false,
+                      "auth": "{{connections.google_drive_oauth2}}"
+                    },
+                    "errorHandlingOptions": {
+                      "continueOnFailure": {
+                        "value": true
+                      },
+                      "retryOnFailure": {
+                        "value": false
+                      }
+                    }
+                  },
+                  "continueOnFailureBranches": {
+                    "onSuccess": {
+                      "name": "validate_export",
+                      "displayName": "Validate exported text",
+                      "valid": true,
+                      "type": "CODE",
+                      "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                      "settings": {
+                        "sourceCode": {
+                          "packageJson": "{}",
+                          "code": "export const code = async (inputs) => {\nconst module = { exports: {} };\n\n\nfunction validateDocumentRequest(input) {\n  const body = input?.body ?? input;\n  const driveFileId = body?.driveFileId;\n  if (typeof driveFileId !== 'string' || !/^[A-Za-z0-9_-]{10,200}$/.test(driveFileId)) throw new Error('driveFileId must be a valid Google Drive file ID.');\n  const notebook = body.notebook === undefined ? '' : body.notebook;\n  if (typeof notebook !== 'string' || notebook.length > 500) throw new Error('notebook must be a string of at most 500 characters.');\n  return {\n    driveFileId,\n    notebook: notebook.trim(),\n    file_source: `https://docs.google.com/document/d/${driveFileId}/edit`,\n  };\n}\n\nfunction validateExport(response, request) {\n  if (!response || !request) throw new Error('Google Drive export response or request is unavailable.');\n  const code = Number(response.statusCode ?? response.status);\n  if (!Number.isInteger(code) || code < 200 || code >= 300) throw new Error('Google Drive export failed.');\n  if (typeof response.body !== 'string' || !response.body.trim()) throw new Error('Google Drive returned an empty or non-text export. Ensure the file is a Google Doc exported from NotebookLM.');\n  if (response.body.length > 500000) throw new Error('Exported text exceeds the 500000-character limit.');\n  return { text: response.body, file_source: request.file_source, notebook: request.notebook };\n}\n\nfunction isDuplicateFailure(errorMessage) {\n  if (typeof errorMessage !== 'string') return false;\n  let failure;\n  try { failure = JSON.parse(errorMessage); } catch { return false; }\n  const statusCode = Number(failure?.status);\n  let body = failure?.responseBody;\n  if (typeof body === 'string') {\n    try { body = JSON.parse(body); } catch { return false; }\n  }\n  return statusCode === 409 && typeof body?.detail === 'string' &&\n    body.detail.startsWith('Document storage already contains');\n}\n\nfunction summarizeIngestion(response, fileSource, errorMessage) {\n  const code = Number(response?.statusCode ?? response?.status ?? 0);\n  const body = response?.body && typeof response.body === 'object' ? response.body : {};\n  const detail = typeof body.detail === 'string' ? body.detail : '';\n  if (code >= 200 && code < 300) {\n    if (body.status !== 'success' || typeof body.track_id !== 'string' || !body.track_id) {\n      return {\n        httpStatus: 502,\n        status: 'error',\n        error: { code: 'upstream_failure', message: 'An upstream service failed during ingestion.' },\n        queued: 0,\n        alreadyPresent: 0,\n        trackIds: [],\n      };\n    }\n    return {\n      httpStatus: 202,\n      status: 'queued',\n      message: 'LightRAG accepted the document for background processing; ingestion is not complete yet.',\n      file_source: fileSource,\n      queued: 1,\n      alreadyPresent: 0,\n      track_id: body.track_id,\n    };\n  }\n  if (code === 409 && detail.startsWith('Document storage already contains')) {\n    return {\n      httpStatus: 200,\n      status: 'already_present',\n      message: 'This source is already present in LightRAG.',\n      file_source: fileSource,\n      queued: 0,\n      alreadyPresent: 1,\n    };\n  }\n  if (isDuplicateFailure(errorMessage)) {\n    return {\n      httpStatus: 200,\n      status: 'already_present',\n      message: 'This source is already present in LightRAG.',\n      file_source: fileSource,\n      queued: 0,\n      alreadyPresent: 1,\n    };\n  }\n  return {\n    httpStatus: 502,\n    status: 'error',\n    error: { code: 'upstream_failure', message: 'An upstream service failed during ingestion.' },\n    queued: 0,\n    alreadyPresent: 0,\n    trackIds: [],\n  };\n}\n\nmodule.exports = { isDuplicateFailure, summarizeIngestion, validateDocumentRequest, validateExport };\n\nreturn module.exports.validateExport(inputs.response, inputs.request);\n};"
+                        },
+                        "input": {
+                          "response": "{{export_google_doc['output']}}",
+                          "request": "{{validate_request['output']}}"
+                        },
+                        "errorHandlingOptions": {
+                          "continueOnFailure": {
+                            "value": true
+                          },
+                          "retryOnFailure": {
+                            "value": false
+                          }
+                        }
+                      },
+                      "continueOnFailureBranches": {
+                        "onSuccess": {
+                          "name": "google_deadline_gate",
+                          "displayName": "Enforce 20 second insertion cutoff",
+                          "valid": true,
+                          "type": "CODE",
+                          "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                          "settings": {
+                            "sourceCode": {
+                              "packageJson": "{}",
+                              "code": "export const code = async (inputs) => {\nconst module = { exports: {} };\n\n\nconst MAX_PROMPT_CHARS = 4000;\nconst MAX_RESULTS = 10;\nconst MAX_CONTENT_CHARS = 500000;\nconst INSERTION_START_CUTOFF_MS = 20000;\n\nfunction validatePrompt(input) {\n  const body = input?.body ?? input;\n  const prompt = body?.prompt;\n  if (typeof prompt !== 'string' || !prompt.trim()) throw new Error('Request body must include a non-empty prompt string.');\n  if (prompt.trim().length > MAX_PROMPT_CHARS) throw new Error('prompt must be at most 4000 characters.');\n  const maxResults = body.maxResults === undefined ? 5 : body.maxResults;\n  if (typeof maxResults !== 'number' || !Number.isInteger(maxResults) || maxResults < 1 || maxResults > MAX_RESULTS) {\n    throw new Error('maxResults must be an integer from 1 to 10.');\n  }\n  return { prompt: prompt.trim(), maxResults };\n}\n\nfunction validHttpUrl(value) {\n  const source = value.trim().split('#', 1)[0];\n  if (!/^https?:\\/\\/[^\\s/?#@]+(?:[/?#]|$)/i.test(source) || /[\\u0000-\\u0020\\u007f]/u.test(source)) return null;\n  return source;\n}\n\nfunction validateSearchResponse(response) {\n  if (!response || typeof response !== 'object' || Array.isArray(response)) throw new Error('Tavily returned a malformed response object.');\n  if (response.error !== undefined && response.error !== null && response.error !== '') throw new Error('Tavily search failed.');\n  if (!Array.isArray(response.results)) throw new Error('Tavily response must contain a results array.');\n  if (response.results.length > MAX_RESULTS) throw new Error('Tavily returned too many results.');\n  const results = [];\n  const reasons = {};\n  const reject = (reason) => { reasons[reason] = (reasons[reason] ?? 0) + 1; };\n  const hasLetterOrNumber = /[\\p{L}\\p{N}]/u;\n  const denialOnly = /^(?:access denied|access forbidden|403 forbidden|you have been blocked|request blocked|website unavailable|page unavailable|service unavailable|404 not found|page not found|this site can(?:not|\\x27t) be reached|the site can(?:not|\\x27t) be reached|robot check|captcha required|enable javascript and cookies to continue)[.!\\s]*$/i;\n  for (const result of response.results) {\n    if (!result || typeof result !== 'object' || Array.isArray(result)) { reject('malformed_result'); continue; }\n    if (typeof result.raw_content !== 'string' || !result.raw_content.trim()) { reject('missing_raw_content'); continue; }\n    if (result.raw_content.length > MAX_CONTENT_CHARS) { reject('raw_content_too_large'); continue; }\n    if (typeof result.url !== 'string' || !validHttpUrl(result.url)) { reject('invalid_url'); continue; }\n    if (/^(?:<!doctype\\s+html\\b|<html\\b)/i.test(result.raw_content.trimStart())) { reject('html_page'); continue; }\n    const trimmed = result.raw_content.trim();\n    if (!hasLetterOrNumber.test(trimmed)) { reject('no_alphanumeric_content'); continue; }\n    if (trimmed.length <= 300 && denialOnly.test(trimmed)) { reject('access_denied_or_error_page'); continue; }\n    results.push(result);\n  }\n  const rejected = Object.values(reasons).reduce((sum, count) => sum + count, 0);\n  return { ...response, results, validation: { received: response.results.length, accepted: results.length, rejected, reasons } };\n}\n\nfunction deduplicateResults(results, prompt) {\n  if (!Array.isArray(results)) throw new Error('Validated search results must be an array.');\n  const seen = new Set();\n  const seenUrls = new Set();\n  const documents = [];\n  for (const result of results) {\n    if (!result || typeof result.raw_content !== 'string' || !result.raw_content.trim() || result.raw_content.length > MAX_CONTENT_CHARS || typeof result.url !== 'string') continue;\n    const source = validHttpUrl(result.url);\n    if (!source || seenUrls.has(source)) continue;\n    const text = result.raw_content.normalize('NFKC').replace(/\\s+/gu, ' ').trim();\n    if (!text || seen.has(text)) continue;\n    seen.add(text);\n    seenUrls.add(source);\n    documents.push({ text, file_source: source });\n  }\n  return { documents, prompt, found: documents.length };\n}\n\nfunction prepareGraphDocuments(bundle, validatedSearch) {\n  if (!bundle || typeof bundle !== 'object' || Array.isArray(bundle)) throw new Error('Deduplication step returned a malformed document bundle.');\n  if (!Array.isArray(bundle.documents)) throw new Error('Deduplication step must return a documents array.');\n  if (!validatedSearch || !Array.isArray(validatedSearch.results)) throw new Error('Validated search results are unavailable for metadata mapping.');\n  const metadataBySource = new Map();\n  for (const result of validatedSearch.results) {\n    if (!result || typeof result.url !== 'string') continue;\n    const source = result.url.trim().split('#', 1)[0];\n    if (!metadataBySource.has(source)) metadataBySource.set(source, { title: typeof result.title === 'string' && result.title.trim() ? result.title : undefined });\n  }\n  const seenSources = new Set();\n  const documents = bundle.documents.map((doc, index) => {\n    if (!doc || typeof doc !== 'object' || typeof doc.text !== 'string' || !doc.text.trim() || typeof doc.file_source !== 'string' || !doc.file_source.trim()) {\n      throw new Error(`Deduplicated document ${index} has invalid text/source alignment.`);\n    }\n    if (seenSources.has(doc.file_source)) throw new Error(`Deduplicated documents contain a repeated source at index ${index}.`);\n    seenSources.add(doc.file_source);\n    const match = metadataBySource.get(doc.file_source.split('#', 1)[0]);\n    return {\n      ...doc,\n      metadata: {\n        source_url: doc.file_source,\n        ...(match?.title ? { title: match.title } : {}),\n        query: bundle.prompt,\n        content_type: 'text/plain',\n      },\n    };\n  });\n  return { ...bundle, found: documents.length, documents };\n}\n\nfunction isDuplicateFailure(errorMessage) {\n  if (typeof errorMessage !== 'string') return false;\n  let failure;\n  try { failure = JSON.parse(errorMessage); } catch { return false; }\n  const statusCode = Number(failure?.status);\n  let body = failure?.responseBody;\n  if (typeof body === 'string') {\n    try { body = JSON.parse(body); } catch { return false; }\n  }\n  return statusCode === 409 && typeof body?.detail === 'string' &&\n    body.detail.startsWith('Document storage already contains');\n}\n\nfunction insertionOutcome(response, source, errorMessage) {\n  const code = Number(response?.statusCode ?? response?.status ?? 0);\n  const body = response?.body && typeof response.body === 'object' ? response.body : {};\n  const detail = typeof body.detail === 'string' ? body.detail : '';\n  if (code >= 200 && code < 300) {\n    if (body.status === 'success' && typeof body.track_id === 'string' && body.track_id) return { source, status: 'queued', track_id: body.track_id };\n    return { source, status: 'failed' };\n  }\n  if (code === 409 && detail.startsWith('Document storage already contains')) return { source, status: 'already_present' };\n  if (isDuplicateFailure(errorMessage)) return { source, status: 'already_present' };\n  return { source, status: 'failed' };\n}\n\nfunction summarizeInsertions(outcomes, { deadlineExceeded = false } = {}) {\n  if (!Array.isArray(outcomes)) throw new Error('Insertion outcomes must be an array.');\n  let queued = 0;\n  let alreadyPresent = 0;\n  const trackIds = [];\n  for (const outcome of outcomes) {\n    if (outcome?.status === 'queued' && typeof outcome.track_id === 'string' && outcome.track_id) {\n      queued++;\n      trackIds.push(outcome.track_id);\n    } else if (outcome?.status === 'already_present') alreadyPresent++;\n  }\n  const failed = outcomes.some((outcome) => outcome?.status === 'failed' || outcome?.status === 'not_attempted');\n  if (failed || deadlineExceeded) {\n    return {\n      httpStatus: 502,\n      status: 'error',\n      error: {\n        code: 'upstream_failure',\n        message: 'An upstream service failed during ingestion.',\n      },\n      queued,\n      alreadyPresent,\n      trackIds,\n    };\n  }\n  const hasNewWork = queued > 0;\n  return {\n    httpStatus: hasNewWork ? 202 : 200,\n    status: hasNewWork ? 'queued' : 'skipped',\n    message: hasNewWork\n      ? 'LightRAG accepted documents for background processing; ingestion is not complete yet.'\n      : 'All usable sources were already present in LightRAG; no new processing was queued.',\n    queued,\n    alreadyPresent,\n    trackIds,\n  };\n}\n\nfunction hasInsertionBudget(requestStart, now = Date.now()) {\n  const startSeconds = typeof requestStart === 'number' || typeof requestStart === 'string' ? Number(requestStart) : NaN;\n  if (!Number.isFinite(startSeconds) || startSeconds <= 0) return false;\n  const startMs = startSeconds * 1000;\n  if (startMs > now + 1000) return false;\n  return now < startMs + INSERTION_START_CUTOFF_MS;\n}\n\nmodule.exports = {\n  deduplicateResults,\n  hasInsertionBudget,\n  isDuplicateFailure,\n  insertionOutcome,\n  prepareGraphDocuments,\n  summarizeInsertions,\n  validatePrompt,\n  validateSearchResponse,\n};\n\nif (!module.exports.hasInsertionBudget(inputs.requestStart, Date.now())) throw new Error('insertion deadline reached');\nreturn {allowed: true};\n};"
+                            },
+                            "input": {
+                              "requestStart": "{{trigger['output'].headers['x-activepieces-request-start']}}"
+                            },
+                            "errorHandlingOptions": {
+                              "continueOnFailure": {
+                                "value": true
+                              },
+                              "retryOnFailure": {
+                                "value": false
+                              }
+                            }
+                          },
+                          "continueOnFailureBranches": {
+                            "onSuccess": {
+                              "name": "queue_google_doc",
+                              "displayName": "Queue exported text in LightRAG",
+                              "valid": true,
+                              "type": "PIECE",
+                              "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                              "settings": {
+                                "pieceName": "@activepieces/piece-http",
+                                "pieceVersion": "0.12.1",
+                                "actionName": "send_request",
+                                "propertySettings": {},
+                                "input": {
+                                  "method": "POST",
+                                  "url": "http://lightrag:9621/documents/text",
+                                  "headers": {
+                                    "Content-Type": "application/json",
+                                    "X-API-Key": "{{connections.lightrag_api_key.secret_text}}"
+                                  },
+                                  "queryParams": {},
+                                  "authType": "NONE",
+                                  "body_type": "json",
+                                  "timeout": 5,
+                                  "failureMode": "retry_none",
+                                  "body": {
+                                    "data": {
+                                      "text": "{{validate_export['output'].text}}",
+                                      "file_source": "{{validate_export['output'].file_source}}"
+                                    }
+                                  }
+                                },
+                                "errorHandlingOptions": {
+                                  "continueOnFailure": {
+                                    "value": true
+                                  },
+                                  "retryOnFailure": {
+                                    "value": false
+                                  }
+                                }
+                              },
+                              "continueOnFailureBranches": {
+                                "onSuccess": {
+                                  "name": "record_google_success",
+                                  "displayName": "Record LightRAG acceptance",
+                                  "valid": true,
+                                  "type": "CODE",
+                                  "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                                  "settings": {
+                                    "sourceCode": {
+                                      "packageJson": "{}",
+                                      "code": "export const code = async (inputs) => {\nconst module = { exports: {} };\n\n\nfunction validateDocumentRequest(input) {\n  const body = input?.body ?? input;\n  const driveFileId = body?.driveFileId;\n  if (typeof driveFileId !== 'string' || !/^[A-Za-z0-9_-]{10,200}$/.test(driveFileId)) throw new Error('driveFileId must be a valid Google Drive file ID.');\n  const notebook = body.notebook === undefined ? '' : body.notebook;\n  if (typeof notebook !== 'string' || notebook.length > 500) throw new Error('notebook must be a string of at most 500 characters.');\n  return {\n    driveFileId,\n    notebook: notebook.trim(),\n    file_source: `https://docs.google.com/document/d/${driveFileId}/edit`,\n  };\n}\n\nfunction validateExport(response, request) {\n  if (!response || !request) throw new Error('Google Drive export response or request is unavailable.');\n  const code = Number(response.statusCode ?? response.status);\n  if (!Number.isInteger(code) || code < 200 || code >= 300) throw new Error('Google Drive export failed.');\n  if (typeof response.body !== 'string' || !response.body.trim()) throw new Error('Google Drive returned an empty or non-text export. Ensure the file is a Google Doc exported from NotebookLM.');\n  if (response.body.length > 500000) throw new Error('Exported text exceeds the 500000-character limit.');\n  return { text: response.body, file_source: request.file_source, notebook: request.notebook };\n}\n\nfunction isDuplicateFailure(errorMessage) {\n  if (typeof errorMessage !== 'string') return false;\n  let failure;\n  try { failure = JSON.parse(errorMessage); } catch { return false; }\n  const statusCode = Number(failure?.status);\n  let body = failure?.responseBody;\n  if (typeof body === 'string') {\n    try { body = JSON.parse(body); } catch { return false; }\n  }\n  return statusCode === 409 && typeof body?.detail === 'string' &&\n    body.detail.startsWith('Document storage already contains');\n}\n\nfunction summarizeIngestion(response, fileSource, errorMessage) {\n  const code = Number(response?.statusCode ?? response?.status ?? 0);\n  const body = response?.body && typeof response.body === 'object' ? response.body : {};\n  const detail = typeof body.detail === 'string' ? body.detail : '';\n  if (code >= 200 && code < 300) {\n    if (body.status !== 'success' || typeof body.track_id !== 'string' || !body.track_id) {\n      return {\n        httpStatus: 502,\n        status: 'error',\n        error: { code: 'upstream_failure', message: 'An upstream service failed during ingestion.' },\n        queued: 0,\n        alreadyPresent: 0,\n        trackIds: [],\n      };\n    }\n    return {\n      httpStatus: 202,\n      status: 'queued',\n      message: 'LightRAG accepted the document for background processing; ingestion is not complete yet.',\n      file_source: fileSource,\n      queued: 1,\n      alreadyPresent: 0,\n      track_id: body.track_id,\n    };\n  }\n  if (code === 409 && detail.startsWith('Document storage already contains')) {\n    return {\n      httpStatus: 200,\n      status: 'already_present',\n      message: 'This source is already present in LightRAG.',\n      file_source: fileSource,\n      queued: 0,\n      alreadyPresent: 1,\n    };\n  }\n  if (isDuplicateFailure(errorMessage)) {\n    return {\n      httpStatus: 200,\n      status: 'already_present',\n      message: 'This source is already present in LightRAG.',\n      file_source: fileSource,\n      queued: 0,\n      alreadyPresent: 1,\n    };\n  }\n  return {\n    httpStatus: 502,\n    status: 'error',\n    error: { code: 'upstream_failure', message: 'An upstream service failed during ingestion.' },\n    queued: 0,\n    alreadyPresent: 0,\n    trackIds: [],\n  };\n}\n\nmodule.exports = { isDuplicateFailure, summarizeIngestion, validateDocumentRequest, validateExport };\n\nreturn module.exports.summarizeIngestion(inputs.response, inputs.source, inputs.errorMessage);\n};"
+                                    },
+                                    "input": {
+                                      "response": "{{queue_google_doc['output']}}",
+                                      "source": "{{validate_request['output'].file_source}}"
+                                    }
+                                  },
+                                  "nextAction": {
+                                    "name": "public_response_record_google_success",
+                                    "displayName": "Project public response",
+                                    "valid": true,
+                                    "type": "CODE",
+                                    "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                                    "settings": {
+                                      "sourceCode": {
+                                        "packageJson": "{}",
+                                        "code": "export const code = async (inputs) => {\nconst result = inputs.result || {}; const {httpStatus, ...body} = result;\nreturn {statusCode: Number(httpStatus) || 502, body};\n};"
+                                      },
+                                      "input": {
+                                        "result": "{{record_google_success['output']}}"
+                                      }
+                                    },
+                                    "nextAction": {
+                                      "name": "return_response_record_google_success",
+                                      "displayName": "Return ingestion response",
+                                      "valid": true,
+                                      "type": "PIECE",
+                                      "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                                      "settings": {
+                                        "pieceName": "@activepieces/piece-webhook",
+                                        "pieceVersion": "0.1.42",
+                                        "actionName": "return_response",
+                                        "propertySettings": {},
+                                        "input": {
+                                          "responseType": "json",
+                                          "fields": {
+                                            "status": "{{public_response_record_google_success['output'].statusCode}}",
+                                            "body": "{{public_response_record_google_success['output'].body}}"
+                                          },
+                                          "respond": "stop"
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "onFailure": {
+                                  "name": "record_google_failure",
+                                  "displayName": "Record safe LightRAG failure",
+                                  "valid": true,
+                                  "type": "CODE",
+                                  "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                                  "settings": {
+                                    "sourceCode": {
+                                      "packageJson": "{}",
+                                      "code": "export const code = async (inputs) => {\nconst module = { exports: {} };\n\n\nfunction validateDocumentRequest(input) {\n  const body = input?.body ?? input;\n  const driveFileId = body?.driveFileId;\n  if (typeof driveFileId !== 'string' || !/^[A-Za-z0-9_-]{10,200}$/.test(driveFileId)) throw new Error('driveFileId must be a valid Google Drive file ID.');\n  const notebook = body.notebook === undefined ? '' : body.notebook;\n  if (typeof notebook !== 'string' || notebook.length > 500) throw new Error('notebook must be a string of at most 500 characters.');\n  return {\n    driveFileId,\n    notebook: notebook.trim(),\n    file_source: `https://docs.google.com/document/d/${driveFileId}/edit`,\n  };\n}\n\nfunction validateExport(response, request) {\n  if (!response || !request) throw new Error('Google Drive export response or request is unavailable.');\n  const code = Number(response.statusCode ?? response.status);\n  if (!Number.isInteger(code) || code < 200 || code >= 300) throw new Error('Google Drive export failed.');\n  if (typeof response.body !== 'string' || !response.body.trim()) throw new Error('Google Drive returned an empty or non-text export. Ensure the file is a Google Doc exported from NotebookLM.');\n  if (response.body.length > 500000) throw new Error('Exported text exceeds the 500000-character limit.');\n  return { text: response.body, file_source: request.file_source, notebook: request.notebook };\n}\n\nfunction isDuplicateFailure(errorMessage) {\n  if (typeof errorMessage !== 'string') return false;\n  let failure;\n  try { failure = JSON.parse(errorMessage); } catch { return false; }\n  const statusCode = Number(failure?.status);\n  let body = failure?.responseBody;\n  if (typeof body === 'string') {\n    try { body = JSON.parse(body); } catch { return false; }\n  }\n  return statusCode === 409 && typeof body?.detail === 'string' &&\n    body.detail.startsWith('Document storage already contains');\n}\n\nfunction summarizeIngestion(response, fileSource, errorMessage) {\n  const code = Number(response?.statusCode ?? response?.status ?? 0);\n  const body = response?.body && typeof response.body === 'object' ? response.body : {};\n  const detail = typeof body.detail === 'string' ? body.detail : '';\n  if (code >= 200 && code < 300) {\n    if (body.status !== 'success' || typeof body.track_id !== 'string' || !body.track_id) {\n      return {\n        httpStatus: 502,\n        status: 'error',\n        error: { code: 'upstream_failure', message: 'An upstream service failed during ingestion.' },\n        queued: 0,\n        alreadyPresent: 0,\n        trackIds: [],\n      };\n    }\n    return {\n      httpStatus: 202,\n      status: 'queued',\n      message: 'LightRAG accepted the document for background processing; ingestion is not complete yet.',\n      file_source: fileSource,\n      queued: 1,\n      alreadyPresent: 0,\n      track_id: body.track_id,\n    };\n  }\n  if (code === 409 && detail.startsWith('Document storage already contains')) {\n    return {\n      httpStatus: 200,\n      status: 'already_present',\n      message: 'This source is already present in LightRAG.',\n      file_source: fileSource,\n      queued: 0,\n      alreadyPresent: 1,\n    };\n  }\n  if (isDuplicateFailure(errorMessage)) {\n    return {\n      httpStatus: 200,\n      status: 'already_present',\n      message: 'This source is already present in LightRAG.',\n      file_source: fileSource,\n      queued: 0,\n      alreadyPresent: 1,\n    };\n  }\n  return {\n    httpStatus: 502,\n    status: 'error',\n    error: { code: 'upstream_failure', message: 'An upstream service failed during ingestion.' },\n    queued: 0,\n    alreadyPresent: 0,\n    trackIds: [],\n  };\n}\n\nmodule.exports = { isDuplicateFailure, summarizeIngestion, validateDocumentRequest, validateExport };\n\nreturn module.exports.summarizeIngestion(null, inputs.source, inputs.errorMessage);\n};"
+                                    },
+                                    "input": {
+                                      "source": "{{validate_export['output'].file_source}}",
+                                      "errorMessage": "{{queue_google_doc['error']['message']}}"
+                                    }
+                                  },
+                                  "nextAction": {
+                                    "name": "public_response_record_google_failure",
+                                    "displayName": "Project public response",
+                                    "valid": true,
+                                    "type": "CODE",
+                                    "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                                    "settings": {
+                                      "sourceCode": {
+                                        "packageJson": "{}",
+                                        "code": "export const code = async (inputs) => {\nconst result = inputs.result || {}; const {httpStatus, ...body} = result;\nreturn {statusCode: Number(httpStatus) || 502, body};\n};"
+                                      },
+                                      "input": {
+                                        "result": "{{record_google_failure['output']}}"
+                                      }
+                                    },
+                                    "nextAction": {
+                                      "name": "return_response_record_google_failure",
+                                      "displayName": "Return ingestion response",
+                                      "valid": true,
+                                      "type": "PIECE",
+                                      "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                                      "settings": {
+                                        "pieceName": "@activepieces/piece-webhook",
+                                        "pieceVersion": "0.1.42",
+                                        "actionName": "return_response",
+                                        "propertySettings": {},
+                                        "input": {
+                                          "responseType": "json",
+                                          "fields": {
+                                            "status": "{{public_response_record_google_failure['output'].statusCode}}",
+                                            "body": "{{public_response_record_google_failure['output'].body}}"
+                                          },
+                                          "respond": "stop"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "onFailure": {
+                              "name": "record_google_deadline",
+                              "displayName": "Record Google insertion deadline",
+                              "valid": true,
+                              "type": "CODE",
+                              "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                              "settings": {
+                                "sourceCode": {
+                                  "packageJson": "{}",
+                                  "code": "export const code = async () => ({httpStatus: 502, status: 'error', error: {code: 'upstream_failure', message: 'An upstream service failed during ingestion.'}, queued: 0, alreadyPresent: 0, trackIds: []});"
+                                },
+                                "input": {}
+                              },
+                              "nextAction": {
+                                "name": "public_response_record_google_deadline",
+                                "displayName": "Project public response",
+                                "valid": true,
+                                "type": "CODE",
+                                "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                                "settings": {
+                                  "sourceCode": {
+                                    "packageJson": "{}",
+                                    "code": "export const code = async (inputs) => {\nconst result = inputs.result || {}; const {httpStatus, ...body} = result;\nreturn {statusCode: Number(httpStatus) || 502, body};\n};"
+                                  },
+                                  "input": {
+                                    "result": "{{record_google_deadline['output']}}"
+                                  }
+                                },
+                                "nextAction": {
+                                  "name": "return_response_record_google_deadline",
+                                  "displayName": "Return ingestion response",
+                                  "valid": true,
+                                  "type": "PIECE",
+                                  "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                                  "settings": {
+                                    "pieceName": "@activepieces/piece-webhook",
+                                    "pieceVersion": "0.1.42",
+                                    "actionName": "return_response",
+                                    "propertySettings": {},
+                                    "input": {
+                                      "responseType": "json",
+                                      "fields": {
+                                        "status": "{{public_response_record_google_deadline['output'].statusCode}}",
+                                        "body": "{{public_response_record_google_deadline['output'].body}}"
+                                      },
+                                      "respond": "stop"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "onFailure": {
+                          "name": "google_ingestion_failed",
+                          "displayName": "Google Ingestion Failed",
+                          "valid": true,
+                          "type": "CODE",
+                          "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                          "settings": {
+                            "sourceCode": {
+                              "packageJson": "{}",
+                              "code": "export const code = async () => ({httpStatus: 502, status: 'error', error: {code: 'upstream_failure', message: 'An upstream service failed during ingestion.'}, queued: 0, alreadyPresent: 0, trackIds: []});"
+                            },
+                            "input": {}
+                          },
+                          "nextAction": {
+                            "name": "public_response_google_ingestion_failed",
+                            "displayName": "Project public response",
+                            "valid": true,
+                            "type": "CODE",
+                            "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                            "settings": {
+                              "sourceCode": {
+                                "packageJson": "{}",
+                                "code": "export const code = async (inputs) => {\nconst result = inputs.result || {}; const {httpStatus, ...body} = result;\nreturn {statusCode: Number(httpStatus) || 502, body};\n};"
+                              },
+                              "input": {
+                                "result": "{{google_ingestion_failed['output']}}"
+                              }
+                            },
+                            "nextAction": {
+                              "name": "return_response_google_ingestion_failed",
+                              "displayName": "Return ingestion response",
+                              "valid": true,
+                              "type": "PIECE",
+                              "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                              "settings": {
+                                "pieceName": "@activepieces/piece-webhook",
+                                "pieceVersion": "0.1.42",
+                                "actionName": "return_response",
+                                "propertySettings": {},
+                                "input": {
+                                  "responseType": "json",
+                                  "fields": {
+                                    "status": "{{public_response_google_ingestion_failed['output'].statusCode}}",
+                                    "body": "{{public_response_google_ingestion_failed['output'].body}}"
+                                  },
+                                  "respond": "stop"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "onFailure": {
+                      "name": "google_export_failed",
+                      "displayName": "Google Export Failed",
+                      "valid": true,
+                      "type": "CODE",
+                      "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                      "settings": {
+                        "sourceCode": {
+                          "packageJson": "{}",
+                          "code": "export const code = async () => ({httpStatus: 502, status: 'error', error: {code: 'upstream_failure', message: 'An upstream service failed during ingestion.'}, queued: 0, alreadyPresent: 0, trackIds: []});"
+                        },
+                        "input": {}
+                      },
+                      "nextAction": {
+                        "name": "public_response_google_export_failed",
+                        "displayName": "Project public response",
+                        "valid": true,
+                        "type": "CODE",
+                        "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                        "settings": {
+                          "sourceCode": {
+                            "packageJson": "{}",
+                            "code": "export const code = async (inputs) => {\nconst result = inputs.result || {}; const {httpStatus, ...body} = result;\nreturn {statusCode: Number(httpStatus) || 502, body};\n};"
+                          },
+                          "input": {
+                            "result": "{{google_export_failed['output']}}"
+                          }
+                        },
+                        "nextAction": {
+                          "name": "return_response_google_export_failed",
+                          "displayName": "Return ingestion response",
+                          "valid": true,
+                          "type": "PIECE",
+                          "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                          "settings": {
+                            "pieceName": "@activepieces/piece-webhook",
+                            "pieceVersion": "0.1.42",
+                            "actionName": "return_response",
+                            "propertySettings": {},
+                            "input": {
+                              "responseType": "json",
+                              "fields": {
+                                "status": "{{public_response_google_export_failed['output'].statusCode}}",
+                                "body": "{{public_response_google_export_failed['output'].body}}"
+                              },
+                              "respond": "stop"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "onFailure": {
+                  "name": "invalid_input",
+                  "displayName": "Invalid Input",
+                  "valid": true,
+                  "type": "CODE",
+                  "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                  "settings": {
+                    "sourceCode": {
+                      "packageJson": "{}",
+                      "code": "export const code = async () => ({httpStatus: 400, status: 'error', error: {code: 'invalid_input', message: 'Invalid request input.'}, queued: 0, alreadyPresent: 0, trackIds: []});"
+                    },
+                    "input": {}
+                  },
+                  "nextAction": {
+                    "name": "public_response_invalid_input",
+                    "displayName": "Project public response",
+                    "valid": true,
+                    "type": "CODE",
+                    "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                    "settings": {
+                      "sourceCode": {
+                        "packageJson": "{}",
+                        "code": "export const code = async (inputs) => {\nconst result = inputs.result || {}; const {httpStatus, ...body} = result;\nreturn {statusCode: Number(httpStatus) || 502, body};\n};"
+                      },
+                      "input": {
+                        "result": "{{invalid_input['output']}}"
+                      }
+                    },
+                    "nextAction": {
+                      "name": "return_response_invalid_input",
+                      "displayName": "Return ingestion response",
+                      "valid": true,
+                      "type": "PIECE",
+                      "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                      "settings": {
+                        "pieceName": "@activepieces/piece-webhook",
+                        "pieceVersion": "0.1.42",
+                        "actionName": "return_response",
+                        "propertySettings": {},
+                        "input": {
+                          "responseType": "json",
+                          "fields": {
+                            "status": "{{public_response_invalid_input['output'].statusCode}}",
+                            "body": "{{public_response_invalid_input['output'].body}}"
+                          },
+                          "respond": "stop"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "onFailure": {
+              "name": "method_not_allowed",
+              "displayName": "Method Not Allowed",
+              "valid": true,
+              "type": "CODE",
+              "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+              "settings": {
+                "sourceCode": {
+                  "packageJson": "{}",
+                  "code": "export const code = async () => ({httpStatus: 405, status: 'error', error: {code: 'method_not_allowed', message: 'Only POST requests are allowed.'}, queued: 0, alreadyPresent: 0, trackIds: []});"
+                },
+                "input": {}
+              },
+              "nextAction": {
+                "name": "public_response_method",
+                "displayName": "Project public response",
+                "valid": true,
+                "type": "CODE",
+                "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                "settings": {
+                  "sourceCode": {
+                    "packageJson": "{}",
+                    "code": "export const code = async (inputs) => {\nconst result = inputs.result || {}; const {httpStatus, ...body} = result;\nreturn {statusCode: Number(httpStatus) || 502, body};\n};"
+                  },
+                  "input": {
+                    "result": "{{method_not_allowed['output']}}"
+                  }
+                },
+                "nextAction": {
+                  "name": "return_response_method",
+                  "displayName": "Return ingestion response",
+                  "valid": true,
+                  "type": "PIECE",
+                  "lastUpdatedDate": "2026-10-05T00:00:00.000Z",
+                  "settings": {
+                    "pieceName": "@activepieces/piece-webhook",
+                    "pieceVersion": "0.1.42",
+                    "actionName": "return_response",
+                    "propertySettings": {},
+                    "input": {
+                      "responseType": "json",
+                      "fields": {
+                        "status": "{{public_response_method['output'].statusCode}}",
+                        "body": "{{public_response_method['output'].body}}"
+                      },
+                      "respond": "stop"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "agentIds": [],
+      "connectionIds": [],
+      "notes": []
+    }
+  ]
+}
