@@ -131,11 +131,13 @@ class DecisionRuntime:
         adapter = self._adapter
 
         def prepare_and_infer():
+            context_started = time.perf_counter()
             context = build_decision_context(request, retrieval, adapter)
+            context_ms = (time.perf_counter() - context_started) * 1000
             if context.status != "ready":
-                return context, {}, 0.0
+                return context, {}, context_ms
             answers, preparation_ms, inference_ms = adapter.infer(context.state_text, request.questions)
-            return context, answers, preparation_ms, inference_ms
+            return context, answers, context_ms + preparation_ms, inference_ms
 
         worker_future = self._executor.submit(prepare_and_infer)
         self._worker_future = worker_future
@@ -168,10 +170,11 @@ class DecisionRuntime:
             return self._failure("failed", "decision_inference_failed", retrieval_ms)
         self._release(token)
         if len(result) == 3:
-            context, _answers, _prep = result
+            context, _answers, preparation_ms = result
             return DecisionResult(status="insufficient_context", context=context,
                                   novelty_fingerprints=new_evidence_fingerprints(request, retrieval),
-                                  timings=DecisionTimings(retrieval_ms=retrieval_ms, preparation_ms=0, inference_ms=None))
+                                  timings=DecisionTimings(retrieval_ms=retrieval_ms, preparation_ms=preparation_ms,
+                                                          inference_ms=None))
         context, answers, preparation_ms, inference_ms = result
         return DecisionResult(status="evaluated", answers=answers, context=context,
                               novelty_fingerprints=new_evidence_fingerprints(request, retrieval),
