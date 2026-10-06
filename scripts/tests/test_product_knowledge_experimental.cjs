@@ -38,6 +38,7 @@ function simulateInvocations(plans, fakeDecisionEvaluate) {
 }
 
 test('experimental manifest is separate, Luna-pinned, and keeps the original tools and policies', () => {
+  assert.deepEqual(experimental.model_parameters, { reasoning_effort: 'none', temperature: 0 });
   assert.equal(experimental.name, 'Product Knowledge & Decision (Experimental)');
   assert.equal(experimental.model, 'gpt-6-luna');
   assert.equal(experimental.tools.includes('decision_evaluate_mcp_lightrag'), true);

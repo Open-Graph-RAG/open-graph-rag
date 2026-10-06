@@ -177,3 +177,5 @@ conversation and does not send external messages or create records.
 - [Atlassian MCP v2 supported tools](https://support.atlassian.com/atlassian-ai-gateway/docs/supported-tools/)
 - [Figma remote MCP server setup](https://developers.figma.com/docs/figma-mcp-server/remote-server-installation/)
 - [Figma MCP tools and prompts](https://developers.figma.com/docs/figma-mcp-server/tools-and-prompts/)
+
+The experimental manifest sets `model_parameters.reasoning_effort` to `none` and temperature to zero. [OpenAI’s Luna model documentation](https://developers.openai.com/api/docs/models/gpt-6-luna) requires `none` for Chat Completions function calling; the installed LibreChat schema and OpenAI configuration mapping accept this setting. The original manifest remains unchanged.

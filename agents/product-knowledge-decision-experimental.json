@@ -20,5 +20,9 @@
     "Investigate whether these two plan-change claims conflict. Preserve both sources, status, scope, and timing; treat any Kev assessment as advisory.",
     "Compare a current Jira requirement with the relevant Figma flow and identify missing scope or timing evidence.",
     "Assess whether the indexed graph provides relevant, source-linked evidence for this product decision; show limitations and omissions."
-  ]
+  ],
+  "model_parameters": {
+    "reasoning_effort": "none",
+    "temperature": 0
+  }
 }
