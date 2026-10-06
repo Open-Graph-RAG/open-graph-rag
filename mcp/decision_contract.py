@@ -219,6 +219,9 @@ class ModelMetadata(StrictModel):
     code_revision: str
     dtype: str
     temperature: float = Field(gt=0)
+    execution_device: Literal["cpu", "cuda"] | None = None
+    device_name: str | None = None
+    cuda_runtime: str | None = None
 
 
 class DecisionTimings(StrictModel):

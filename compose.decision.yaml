@@ -1,0 +1,49 @@
+services:
+  mcp:
+    build:
+      context: ./mcp
+      target: kev
+    environment:
+      MCP_DECISION_ENABLED: "1"
+      KEV_DEVICE: cuda
+      KEV_SOURCE: /opt/kev
+      KEV_CHECKPOINT: /model-cache/artifacts/kev
+      KEV_BASE: /model-cache/artifacts/base
+    stop_grace_period: 30s
+    volumes:
+      - type: volume
+        source: kev_model_cache
+        target: /model-cache
+        read_only: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  kev-artifact-prepare:
+    build:
+      context: ./mcp
+      target: kev
+    profiles: [kev-prepare]
+    user: "10001:10001"
+    command: [python, /app/prepare_kev_artifacts.py, --output, /model-cache/artifacts, --hf-home, /model-cache/prepare-hf]
+    environment:
+      HF_HOME: /model-cache/prepare-hf
+      HF_HUB_CACHE: /model-cache/prepare-hf/hub
+      HF_XET_CACHE: /model-cache/prepare-hf/xet
+      HF_ASSETS_CACHE: /model-cache/prepare-hf/assets
+      HF_HUB_OFFLINE: "0"
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - type: volume
+        source: kev_model_cache
+        target: /model-cache
+
+volumes:
+  kev_model_cache:
