@@ -8,7 +8,8 @@
     "Upload-limit insufficient case no longer gives explicitly different channels.",
     "Renewal-notice case has comparable claims with missing applicability and a separate invoice distractor.",
     "Fraud routing explicitly separates high-risk and low-risk cases.",
-    "Compatible gold scopes identify application scope rather than repeat claim text."
+    "Compatible gold scopes identify application scope rather than repeat claim text.",
+    "Source identifiers and filenames are anonymous within each isolated case; facts and labels are unchanged."
   ],
   "limitations": [
     "Synthetic records frequently state qualifiers explicitly; results cannot establish performance on realistic noisy enterprise evidence.",
