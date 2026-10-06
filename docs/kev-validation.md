@@ -12,7 +12,7 @@ The original CPU/4 GiB feasibility requirement was revised to a 6 GiB additional
 |---|---|---|
 | Host GPU feasibility | [Full benchmark](kev-feasibility-gpu.json), [method and limits](kev-feasibility-phase-1.md) | Short p95 239.63 ms; near-limit p95 1,544.21 ms; additional peak RSS 5.20 GiB. Passed the 10-second/6 GiB limits. |
 | Contracts and context | `mcp/tests/test_decision_contract.py` | Strict input validation, exact provenance, atomic graph packages, intact excerpts, omissions, fingerprints, and token overflow checks passed. |
-| Runtime and protocol | Bridge suite: 41 tests; lightweight environment skips one optional pinned-source helper test | Authentication, original search, typed tool discovery, raw byte limits, streamed envelope cap, busy admission, cancellation, stalled state, and shutdown checks passed. Independent pinned-source review exited successfully. |
+| Runtime and protocol | Bridge suite: 43 tests; lightweight environment skips one optional pinned-source helper test | Authentication, original search, typed tool discovery, raw byte limits, streamed envelope cap, busy admission, cancellation, stalled state, and shutdown checks passed. Independent pinned-source review exited successfully. |
 | Genuine model parity | [Reproducible smoke](../mcp/decision_parity_smoke.py) | Host CUDA load with empty Hugging Face cache; exact encoded IDs and direct helper/adapter agreement for choice, yes/no, and score; enabled MCP result `evaluated` through the application lifespan. Passed. |
 | Live LightRAG and host GPU | Read-only query against the running LightRAG API, followed by genuine Kev evaluation | `evaluated`; context retained one passage and two linked graph assertions. Retrieval 1.47 s, preparation 0.005 s, inference 1.23 s, end-to-end 2.82 s. Passed with explicit unresolved-link and token-budget limitations. |
 | Lightweight image | Default image built and inspected with network disabled | No Torch or Kev installation; only `knowledge_search` exposed. Passed. |
@@ -27,7 +27,7 @@ Retrieval returned one passage, 17 graph assertions with at least one supporting
 
 ## Review reconciliation
 
-Review identified and resolved reversed yes/no ordering, confidence-helper mismatch, local base loading, uncapped raw envelope buffering, stall timing and cancellation monitoring, shutdown callbacks after event-loop closure, stateless MCP session cleanup closing the shared runtime, public schema wrapping, and missing packaged artifact checksums. Runtime lifecycle states are now inspectable through a derived read-only property.
+Review identified and resolved reversed yes/no ordering, confidence-helper mismatch, local base loading, uncapped raw envelope buffering, stall timing and cancellation monitoring, shutdown callbacks after event-loop closure, stateless MCP session cleanup closing the shared runtime, public schema wrapping, and missing packaged artifact checksums. Runtime lifecycle states are now inspectable through a derived read-only property. Final lifecycle review fixed late completion releasing admission for a subsequent request, and shutdown during retrieval submitting work to a closed executor. Regression tests reproduce both sequences.
 
 ## Remaining gates
 

@@ -52,6 +52,64 @@ class FakeRetriever:
 
 
 class DecisionRuntimeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_shutdown_during_retrieval_does_not_submit_native_work(self):
+        started, finish = asyncio.Event(), asyncio.Event()
+
+        class BlockingRetriever:
+            async def retrieve(self, query):
+                started.set()
+                await finish.wait()
+                return retrieval()
+
+        runtime = DecisionRuntime(BlockingRetriever(), FakeAdapter)
+        await asyncio.wrap_future(runtime._load_future)
+        pending = asyncio.create_task(runtime.evaluate(request()))
+        await started.wait()
+        await runtime.close()
+        finish.set()
+        result = await pending
+        self.assertEqual(result.status, "unavailable")
+        self.assertEqual(result.context.limitations.items, ("decision_runtime_draining",))
+        self.assertIsNone(runtime._worker_future)
+
+    async def test_late_completion_cannot_release_next_request_admission(self):
+        runtime = DecisionRuntime(FakeRetriever(), FakeAdapter)
+        await asyncio.wrap_future(runtime._load_future)
+        loop = asyncio.get_running_loop()
+        original = loop.call_soon_threadsafe
+        delayed = []
+
+        def defer_release(callback, *args, **kwargs):
+            if callback == runtime._release:
+                delayed.append((callback, args))
+                return None
+            return original(callback, *args, **kwargs)
+
+        loop.call_soon_threadsafe = defer_release
+        try:
+            self.assertEqual((await runtime.evaluate(request())).status, "evaluated")
+            self.assertTrue(delayed)
+            started, finish = asyncio.Event(), asyncio.Event()
+
+            class BlockingRetriever:
+                async def retrieve(self, query):
+                    started.set()
+                    await finish.wait()
+                    return retrieval()
+
+            runtime.retriever = BlockingRetriever()
+            second = asyncio.create_task(runtime.evaluate(request()))
+            await started.wait()
+            callback, args = delayed.pop(0)
+            callback(*args)
+            self.assertEqual((await runtime.evaluate(request())).context.limitations.items,
+                             ("decision_runtime_busy",))
+            finish.set()
+            self.assertEqual((await second).status, "evaluated")
+        finally:
+            loop.call_soon_threadsafe = original
+            await runtime.close()
+
     async def test_lifecycle_state_tracks_loading_ready_disabled_and_draining(self):
         entered, release = threading.Event(), threading.Event()
         def loader():

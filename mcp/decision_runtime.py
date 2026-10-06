@@ -54,6 +54,7 @@ class DecisionRuntime:
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="kev-runtime")
         self._loop: asyncio.AbstractEventLoop | None = None
         self._busy = False
+        self._admission_token: object | None = None
         self._stalled = False
         self._closed = False
         self._admission = asyncio.Lock()
@@ -95,6 +96,7 @@ class DecisionRuntime:
             if self._busy:
                 return self._failure("unavailable", "decision_runtime_busy", 0)
             self._busy = True
+            token = self._admission_token = object()
         loop = asyncio.get_running_loop()
         self._loop = loop
         # Warm loading is asynchronous and shares the sole owned worker. Do not queue an
@@ -102,27 +104,30 @@ class DecisionRuntime:
         load_future = self._load_future
         if self._adapter is None:
             if load_future is None or not load_future.done():
-                self._release()
+                self._release(token)
                 return self._failure("unavailable", "decision_model_loading", 0)
             try:
                 self._adapter = load_future.result()
             except Exception:
-                self._release()
+                self._release(token)
                 return self._failure("unavailable", "decision_model_unavailable", 0)
         retrieval_started = time.perf_counter()
         try:
             remaining = max(0.001, self.response_deadline - (time.perf_counter() - started))
             retrieval = await asyncio.wait_for(self.retriever.retrieve(request.query), timeout=remaining)
         except asyncio.CancelledError:
-            self._release()
+            self._release(token)
             raise
         except asyncio.TimeoutError:
-            self._release()
+            self._release(token)
             return self._failure("failed", "decision_response_deadline_exceeded", 0)
         except (RetrievalError, Exception):
-            self._release()
+            self._release(token)
             return self._failure("failed", "decision_retrieval_unavailable", 0)
         retrieval_ms = (time.perf_counter() - retrieval_started) * 1000
+        if self._closed:
+            self._release(token)
+            return self._failure("unavailable", "decision_runtime_draining", retrieval_ms)
         adapter = self._adapter
 
         def prepare_and_infer():
@@ -137,7 +142,7 @@ class DecisionRuntime:
 
         def release_after_worker(_future: Future) -> None:
             try:
-                loop.call_soon_threadsafe(self._release)
+                loop.call_soon_threadsafe(self._release, token)
             except RuntimeError:
                 # A bounded shutdown may finish after the owning ASGI loop closes.
                 pass
@@ -159,9 +164,9 @@ class DecisionRuntime:
             # Admission remains held by the future callback until native inference ends.
             raise
         except Exception:
-            self._release()
+            self._release(token)
             return self._failure("failed", "decision_inference_failed", retrieval_ms)
-        self._release()
+        self._release(token)
         if len(result) == 3:
             context, _answers, _prep = result
             return DecisionResult(status="insufficient_context", context=context,
@@ -173,8 +178,12 @@ class DecisionRuntime:
                               timings=DecisionTimings(retrieval_ms=retrieval_ms, preparation_ms=preparation_ms,
                                                       inference_ms=inference_ms), model=adapter.metadata)
 
-    def _release(self) -> None:
-        self._busy = False
+    def _release(self, token: object) -> None:
+        # Completion callbacks can arrive after the caller has observed completion
+        # and a subsequent request has acquired admission.
+        if self._admission_token is token:
+            self._busy = False
+            self._admission_token = None
 
     def _mark_stalled_if_running(self, future: Future) -> None:
         if not future.done():
