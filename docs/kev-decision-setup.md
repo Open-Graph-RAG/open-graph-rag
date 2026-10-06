@@ -25,11 +25,46 @@ If the cache is empty or artifact verification fails, the decision tool returns 
 
 ## Request limits and outcomes
 
-The decision request body is limited to 64 KiB; an MCP HTTP request carrying the tool call is limited to 128 KiB. A request can ask 1–4 questions. Choice questions and score questions accept 2–8 options or levels; up to 8 caller-supplied evidence excerpts and 64 seen fingerprints are accepted. Objective and query text are each limited to 4,000 characters, and each supplied excerpt to 8,000 characters.
+The serialized decision `arguments` are limited to 64 KiB. Every HTTP POST in the decision-enabled application is limited to 128 KiB. A request can ask 1–4 questions. Choice questions and score questions accept 2–8 options or levels; up to 8 caller-supplied evidence excerpts and 64 seen fingerprints are accepted. Objective and query text are each limited to 4,000 characters, and each supplied excerpt to 8,000 characters.
 
-Responses use one of four statuses: `evaluated`, `insufficient_context`, `unavailable`, or `failed`. Only `evaluated` includes probabilities. Insufficient or unresolved evidence is returned with context limitations and no probability output. The single inference worker does not queue concurrent requests: an overlapping call can return `unavailable` with a busy limitation. During model loading, calls can return `unavailable` with a loading limitation.
+Responses use one of four statuses: `evaluated`, `insufficient_context`, `unavailable`, or `failed`. Only `evaluated` includes probabilities. Non-evaluated outcomes return limitations without probability output. An `evaluated` outcome can still contain unresolved-link or token-budget limitations; it assesses only its included context. The single inference worker does not queue concurrent requests: an overlapping call can return `unavailable` with a busy limitation. During model loading, calls can return `unavailable` with a loading limitation.
+
+For example, a bounded conflict investigation can send these tool arguments:
+
+```json
+{
+  "objective": "Compare approval timing for the proposed customer plan-change workflow.",
+  "query": "CP-248 FLOW-02 customer plan change approval effective time",
+  "questions": {
+    "assessment": {
+      "type": "choice",
+      "instructions": "Compare original claims, actor, scope, status, and effective time. Choose insufficient if a material comparison fact is missing.",
+      "options": [
+        {"id": "conflict", "description": "Incompatible claims concern the same workflow and effective scope."},
+        {"id": "compatible", "description": "The documented difference is compatible after accounting for scope or timing."},
+        {"id": "insufficient", "description": "The evidence cannot establish the relevant comparison."}
+      ]
+    },
+    "scope_complete": {
+      "type": "yes_no",
+      "instructions": "Does the supplied context establish the actor, workflow scope, status, and timing needed for this comparison?"
+    }
+  }
+}
+```
+
+`supplied_evidence` can carry original live excerpts using `id`, `text`, `source_locator`, and caller-claimed `origin`, with optional `retrieved_at`, `status`, `version`, and `original_reference`. Those metadata are caller-provided; the bridge does not verify permission or authenticity. Carry returned `novelty_fingerprints` into `seen_fingerprints` on a targeted follow-up. Different live/indexed contents and versions remain distinct.
+
+Inspect the returned exact context, original source references, included and omitted item IDs and reasons, token counts, limitations, and separate timings alongside answers. Graph assertions are explicitly graph-extracted; inspect their linked source text before presenting them as facts. Model metadata identifies the pinned checkpoint, base, tokenizer, source revision, dtype, temperature, and execution device. Every result remains `calibration_status: not_validated_for_domain`; confidence measures describe the output distribution and do not guarantee correctness.
 
 Retrieval and inference share a 15-second response deadline. If native inference is still running after 60 seconds, the runtime marks its worker stalled and refuses further decision requests; restart the `mcp` service to recover. Shutdown waits at most 20 seconds for the worker, and Compose allows 30 seconds before stopping the container.
+
+```bash
+# Recover a stalled enabled runtime after investigating the cause.
+docker compose -f compose.yaml -f compose.decision.yaml restart mcp
+# Roll back to the lightweight bridge; persistent volumes are retained.
+docker compose -f compose.yaml up -d --build mcp
+```
 
 Probabilities are model outputs, not calibrated business confidence. Present them with the returned source context and limitations, and do not treat them as a substitute for reviewing the evidence.
 
