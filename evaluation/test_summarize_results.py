@@ -65,11 +65,13 @@ class SummarizerTests(unittest.TestCase):
             ],
         }}]
         from evaluation.summarize_results import operational_metrics
+        rows.append({"arm": "baseline", "status": "not_run"})
         result = operational_metrics(rows, "baseline", "controlled")
         self.assertEqual(result["provider_request_latency_ms"]["median"], 15)
         lower_bound = result["measured_sequential_component_lower_bound_ms"]
         self.assertEqual(lower_bound["total"], 40)
         self.assertEqual(lower_bound["median_per_conversation"], 40)
+        self.assertEqual(lower_bound["conversations"], 1)
         self.assertEqual(lower_bound["components_total_ms"]["retrieval_ms"], 2)
         self.assertIn("lower bound", lower_bound["excludes"])
 

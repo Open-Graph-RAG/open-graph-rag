@@ -238,7 +238,8 @@ def operational_metrics(rows: list[dict[str, Any]], arm: str, kind: str) -> dict
                     value = timings.get(key)
                     if isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0:
                         components[key] += float(value)
-        sequential_lower_bounds.append(sum(components.values()))
+        if request_latencies or any(components[key] for key in timing_keys):
+            sequential_lower_bounds.append(sum(components.values()))
         measured_components.update(components)
     return {"provider_request_latency_ms": {"median": statistics.median(latencies) if latencies else None,
                                              "p95": percentile(latencies, .95), "n": len(latencies)},
