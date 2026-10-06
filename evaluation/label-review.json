@@ -1,0 +1,19 @@
+{
+  "reviewer": "Root agent, independent of dataset author; no evaluated model responses observed",
+  "cases_reviewed": 84,
+  "method": "Read all original source excerpts against the rubric; re-read corrected cases and compatible scope annotations. Structural checks supplement semantic review.",
+  "resolved_findings": [
+    "Nested upper-bound conflicts replaced with mutually exclusive values.",
+    "Version and temporal compatibility now has explicit applicability.",
+    "Upload-limit insufficient case no longer gives explicitly different channels.",
+    "Renewal-notice case has comparable claims with missing applicability and a separate invoice distractor.",
+    "Fraud routing explicitly separates high-risk and low-risk cases.",
+    "Compatible gold scopes identify application scope rather than repeat claim text."
+  ],
+  "limitations": [
+    "Synthetic records frequently state qualifiers explicitly; results cannot establish performance on realistic noisy enterprise evidence.",
+    "Scenario fixtures are distinct, but business topics recur across splits.",
+    "Mechanical graph links do not establish semantic source support; misleading assertions remain intentional."
+  ],
+  "approved_for_freeze": true
+}
