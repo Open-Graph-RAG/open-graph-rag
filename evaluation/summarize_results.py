@@ -131,6 +131,7 @@ def controlled_mechanics(rows: list[dict[str, Any]], arm: str) -> dict[str, Any]
     owner_flags: list[bool] = []
     qualifier_matches = qualifier_fields = 0
     unavailable_disclosures = no_inference_disclosures = context_gap_disclosures = 0
+    unavailable_required = no_inference_required = context_gap_required = 0
     insufficient_context_rows = 0
     for row in selected:
         score = row.get("score") or {}
@@ -152,10 +153,17 @@ def controlled_mechanics(rows: list[dict[str, Any]], arm: str) -> dict[str, Any]
         if accuracy is not None and fields:
             qualifier_matches += round(float(accuracy) * fields)
             qualifier_fields += fields
-        unavailable_disclosures += int(score.get("exact_unavailable_disclosure_present") is True)
-        no_inference_disclosures += int(score.get("no_inference_disclosed_for_empty_answers") is True)
-        context_gap_disclosures += int(score.get("context_gap_not_called_model_assessment") is True)
         usage = row.get("usage") or {}
+        statuses = usage.get("decision_statuses", [])
+        needs_unavailable = any(status in {"unavailable", "failed"} for status in statuses)
+        needs_no_inference = any(status in {"insufficient_context", "unavailable", "failed"} for status in statuses)
+        needs_gap = "insufficient_context" in statuses
+        unavailable_required += int(needs_unavailable)
+        no_inference_required += int(needs_no_inference)
+        context_gap_required += int(needs_gap)
+        unavailable_disclosures += int(needs_unavailable and score.get("exact_unavailable_disclosure_present") is True)
+        no_inference_disclosures += int(needs_no_inference and score.get("no_inference_disclosed_for_empty_answers") is True)
+        context_gap_disclosures += int(needs_gap and score.get("context_gap_not_called_model_assessment") is True)
         insufficient_context_rows += sum(
             status == "insufficient_context" for status in usage.get("decision_statuses", [])
         )
@@ -183,8 +191,11 @@ def controlled_mechanics(rows: list[dict[str, Any]], arm: str) -> dict[str, Any]
         "qualifier_field_exact_matches_proxy": qualifier_matches,
         "qualifier_fields_checked": qualifier_fields,
         "exact_unavailable_disclosures": unavailable_disclosures,
+        "unavailable_disclosure_required_rows": unavailable_required,
         "no_inference_disclosures": no_inference_disclosures,
+        "no_inference_disclosure_required_rows": no_inference_required,
         "context_gap_disclosures": context_gap_disclosures,
+        "context_gap_disclosure_required_rows": context_gap_required,
         "insufficient_context_tool_statuses": insufficient_context_rows,
     }
 

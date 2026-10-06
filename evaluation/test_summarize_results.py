@@ -4,6 +4,19 @@ from evaluation.summarize_results import controlled_mechanics, score_arm, summar
 
 
 class SummarizerTests(unittest.TestCase):
+    def test_disclosure_counts_include_only_outcomes_that_require_disclosure(self):
+        from evaluation.summarize_results import controlled_mechanics
+        score = {"exact_unavailable_disclosure_present": True,
+                 "no_inference_disclosed_for_empty_answers": True,
+                 "context_gap_not_called_model_assessment": True}
+        rows = [{"arm": "baseline", "score": score, "usage": {"decision_statuses": []}},
+                {"arm": "baseline", "score": score, "usage": {"decision_statuses": ["failed"]}}]
+        metrics = controlled_mechanics(rows, "baseline")
+        self.assertEqual(metrics["unavailable_disclosure_required_rows"], 1)
+        self.assertEqual(metrics["exact_unavailable_disclosures"], 1)
+        self.assertEqual(metrics["no_inference_disclosures"], 1)
+        self.assertEqual(metrics["context_gap_disclosures"], 0)
+
     def test_missing_case_is_a_false_negative_in_full_denominator(self):
         gold = {"heldout-a": "conflict", "heldout-b": "conflict"}
         rows = [{"case_id": "heldout-a", "arm": "graph_off", "status": "evaluated",
