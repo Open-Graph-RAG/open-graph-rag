@@ -111,6 +111,11 @@ offline test simulates attempts but does not prove Luna will obey it.
 The tool appears only when the optional decision deployment is enabled; prepare
 its local model cache as described in [the Kev setup guide](kev-decision-setup.md).
 
+The [held-out evaluation](../evaluation/report.md) failed the direct classifier
+quality gate and stopped the controlled comparison at its input reservation.
+The graph recipe surfaced fewer supported conflicts than baseline. Keep this
+definition experimental; these instructions do not recommend recipe rollout.
+
 Before provisioning, configure `.env` with `gpt-6-luna` in `CHAT_MODELS` and
 valid `CHAT_API_KEY` and `CHAT_API_BASE` values for the intended
 OpenAI-compatible provider. The Compose configuration passes `CHAT_MODELS` to

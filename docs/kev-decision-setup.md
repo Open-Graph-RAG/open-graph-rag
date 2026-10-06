@@ -2,6 +2,8 @@
 
 The regular stack stays a lightweight, search-only bridge. The validated default image contains neither PyTorch nor Kev. The optional decision tool is enabled only when you add `compose.decision.yaml`; it runs on the pinned Kev and Qwen artifacts described in [the phase 1 feasibility report](kev-feasibility-phase-1.md).
 
+The [held-out quality report](../evaluation/report.md) records a failed direct classifier gate and an incomplete controlled Luna comparison with no demonstrated benefit. This tool remains opt-in and experimental; the separate recipe is not approved for rollout.
+
 ## Prepare and start
 
 The deployment host needs an NVIDIA GPU, Docker Compose GPU support, and outbound HTTPS access while downloading model artifacts. Build the optional image and prepare its pinned artifacts:

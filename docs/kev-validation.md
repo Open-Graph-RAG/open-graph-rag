@@ -20,6 +20,10 @@ The original CPU/4 GiB feasibility requirement was revised to a 6 GiB additional
 | Experimental agent | Six offline Node checks plus independent review | Separate manifest/model, preserved defaults and ownership, test-only three-attempt/error/novelty scenarios. Passed; actual model compliance remains an evaluation question. |
 | Cache ownership | Fresh disposable anonymous volume | UID/GID 10001:10001. Passed. |
 | Compose | Normal and optional `config --quiet` | Passed. |
+| Dataset freeze | 24 development / 60 held-out scenario-separated cases; independent source/rubric review; anonymous source IDs; hashed manifest | Completed before paid generation. |
+| Direct graph ablation | 60 cases per arm with byte-identical original passage tuples; genuine host-GPU Kev | Failed quality gate. Graph-on conflict precision 53.3%, recall 80.0%, macro-F1 36.6%; graph-off 51.5%, 85.0%, 35.6%. Missing outcomes remain in the denominator. |
+| Controlled Luna workflow | Frozen three-arm suite; all 180 slots retained; semantic review of all 178 completed answers | Incomplete: 178 completed, one input-reserve abort, one unrun. Supported conflicts: baseline 19/20, passage-only 12/20, graph 9/20. No quality benefit or rollout pass. |
+| Paid usage and harness checks | OpenAI `gpt-6-luna`, reasoning none, temperature zero; 23 offline evaluation/reporting tests | 486 calls; 987,537 input and 101,379 output tokens (731,425 cached input included; zero reasoning output). Caps respected; no retries. Offline tests passed. |
 
 GPU parity uses fixture retrieval and proves the model/bridge integration; it does not prove the quality of production LightRAG evidence. Docker GPU inference remains untested because this host's Docker GPU runtime is unavailable. The interrupted CPU diagnostic is not a passing CPU benchmark.
 
@@ -29,6 +33,10 @@ Retrieval returned one passage, 17 graph assertions with at least one supporting
 
 Review identified and resolved reversed yes/no ordering, confidence-helper mismatch, local base loading, uncapped raw envelope buffering, stall timing and cancellation monitoring, shutdown callbacks after event-loop closure, stateless MCP session cleanup closing the shared runtime, public schema wrapping, and missing packaged artifact checksums. Runtime lifecycle states are now inspectable through a derived read-only property. Final lifecycle review fixed late completion releasing admission for a subsequent request, and shutdown during retrieval submitting work to a closed executor. Regression tests reproduce both sequences. Runtime artifact verification now requires the complete packaged pinned checksum list, so an omitted or replaced manifest entry cannot bypass verification. Preparation timing includes context assembly.
 
-## Remaining gates
+Final independent reconciliation verified all frozen input hashes, unchanged original agent files, raw/summary usage totals, fixed denominators, four malformed answers, semantic audit coverage, and resource measurements. All 23 offline evaluation/reporting tests passed in a bounded host run. A check confirmed the configured provider credential is absent from the evaluation artifacts and documentation. No material review findings remain open; failed quality and incomplete comparison findings remain documented rather than repaired through post-freeze reruns.
 
-Scenario-separated development and held-out datasets, direct graph ablation, controlled three-arm Luna comparison, and the final rollout verdict are pending. No paid generation evaluation has run yet. A read-only provider model-access check confirmed `gpt-6-luna` availability; it is not quality evidence.
+## Final verdict and untested claims
+
+The direct quality gate failed. The workflow comparison is incomplete because the conservative next-request reserve stopped generation near the input cap; all 60 cases per arm remain in its metrics. Four completed conversations also produced malformed final answers. Independently reviewed supported conflicts were 19/20 baseline, 12/20 passage-only, and 9/20 graph: the required improvement of two was not achieved. The generic tool and separate agent remain experimental; the original agent and lightweight deployment are preserved.
+
+See [the frozen experiment, errors, usage, latency, and rollout report](../evaluation/report.md). Exact per-conversation wall-clock latency was not recorded; reported component sums are lower bounds. Real enterprise quality, calibrated probabilities, CPU feasibility, and populated GPU Docker inference remain unproven. No live agent was provisioned or deployed by this evaluation. Recovery and rollback commands are in [the setup guide](kev-decision-setup.md).

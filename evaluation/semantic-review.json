@@ -1,0 +1,2359 @@
+{
+  "reviewed_completed_rows": 178,
+  "records": [
+    {
+      "case_id": "heldout-insufficient-06",
+      "arm": "baseline",
+      "supported_conflict": false,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "False conflict: excerpts differ in status and omit effective time; the answer itself says the conflict is unresolved. Both source quotes/IDs are valid. Owner remains unknown. No Kev-inference wording is appropriate for this baseline arm."
+    },
+    {
+      "case_id": "heldout-insufficient-06",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": false,
+      "review_notes": "Insufficient conclusion is supported by differing statuses and missing effective time/conditions; citations and statuses match the excerpts. The limitation falsely says no Kev inference occurred and that the evaluation returned insufficient, although status was evaluated and inference_completed=1 (Kev's selected answer may be insufficient)."
+    },
+    {
+      "case_id": "heldout-insufficient-06",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Insufficient is supported; the explanation preserves unknown timing, version, supersession, and differing status/actor information. Exact source quotes and locators are valid; no fabricated owner/status."
+    },
+    {
+      "case_id": "heldout-insufficient-13",
+      "arm": "baseline",
+      "supported_conflict": false,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "False conflict: source types differ (security note vs user guide), with no effective time/version or environment; answer names these gaps but still asserts disagreement as conflict. Quotes and statuses are accurate; owner is not invented."
+    },
+    {
+      "case_id": "heldout-insufficient-13",
+      "arm": "passage_only_kev",
+      "supported_conflict": false,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "False conflict despite explicitly noting unknown effective time/version and differing source types; insufficient is the supported conclusion. Quotes/statuses are accurate. It says Kev assessed the passages only, which matches evaluated/inference_completed=1; actor='admin' is a reasonable reading of the source heading, though the fixture qualifier is null."
+    },
+    {
+      "case_id": "heldout-insufficient-13",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly classifies the discrepancy as insufficient for a same-condition conflict and preserves missing actor/time/version and precedence. Citations and status values match the passages."
+    },
+    {
+      "case_id": "heldout-compatible-04",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Correctly distinguishes standard-admin and break-glass scopes. Both exact claims, dates, statuses, and Identity Security ownership match the excerpts; limitations correctly avoid generalizing beyond them."
+    },
+    {
+      "case_id": "heldout-compatible-04",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": false,
+      "review_notes": "Compatible conclusion and source qualifiers are supported. However, the limitation says no Kev inference occurred and the passage-only evaluator returned insufficient; status is evaluated and inference_completed=1. Its statement that the model assessment is not treated as a determination is appropriate."
+    },
+    {
+      "case_id": "heldout-compatible-04",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Final compatible classification and scope explanation are supported. It transparently reports that Kev selected conflict; raw tool result confirms this, so this is a model/final-answer disagreement rather than fabrication. Citations and all qualifiers match."
+    },
+    {
+      "case_id": "heldout-conflict-02",
+      "arm": "baseline",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported conflict: same actor, scope, released status, and effective date with incompatible validity claims. Both exact quotes and ownership are grounded. Baseline correctly states no Kev inference occurred."
+    },
+    {
+      "case_id": "heldout-conflict-02",
+      "arm": "passage_only_kev",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": false,
+      "review_notes": "Conflict and qualifiers are supported. Limitation also says Kev selected insufficient with low confidence, consistent with the raw answer, but then says no Kev inference occurred; status evaluated/inference_completed=1 makes that disclosure false."
+    },
+    {
+      "case_id": "heldout-conflict-02",
+      "arm": "graph_decision",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported conflict with both exact source claims, matching scope/status/date, and unknown supersession preserved. Ownership/status are grounded; advisory limitation is appropriate."
+    },
+    {
+      "case_id": "heldout-conflict-01",
+      "arm": "baseline",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Explicit approver clauses conflict for the same scope/status/effective date. The answer accurately surfaces source_2's internal mismatch: its claim text names a Security on-call engineer while its Actor line says support leads. Citations, stated status, and Customer Support owner are grounded."
+    },
+    {
+      "case_id": "heldout-conflict-01",
+      "arm": "passage_only_kev",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Explicit approver claims conflict. The answer preserves the source_2 claim-vs-Actor-line mismatch and unknown approval conditions; exact quotes, status, and owner are supported. It correctly says Kev evaluated passages only and graph evidence was omitted."
+    },
+    {
+      "case_id": "heldout-conflict-01",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "The answer identifies the source_2 claim-vs-Actor-line inconsistency, missing version/retrieval/supersession, and appropriately says the actor is unresolved. It undercalls the benchmark label: the two explicit approver clauses do differ for matching scope/status/date. Exact citations and owner/status are grounded."
+    },
+    {
+      "case_id": "heldout-conflict-09",
+      "arm": "baseline",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported conflict: same actor/scope/status/effective date, with clean-result gate versus downloads during scanning. Exact claims and Trust Platform owner are grounded; limitations preserve unprovided file/scan conditions. Baseline correctly says no Kev inference occurred."
+    },
+    {
+      "case_id": "heldout-conflict-09",
+      "arm": "passage_only_kev",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": false,
+      "review_notes": "Conflict is supported and qualifiers are accurate. It reports the raw Kev selection (compatible) and low confidence correctly, but also falsely says no Kev inference occurred despite evaluated status/inference_completed=1."
+    },
+    {
+      "case_id": "heldout-conflict-09",
+      "arm": "graph_decision",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Correctly describes incompatible statements under matching actor/scope/status/date and preserves missing scan-state/exception information. Citations and owner/status are grounded."
+    },
+    {
+      "case_id": "heldout-conflict-19",
+      "arm": "baseline",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "The two service-objective claims are incompatible for the same stated actor, scope, status, and date. The answer preserves ambiguity about primary database and whether the values are target vs measurement. Quotes/owner/status are grounded."
+    },
+    {
+      "case_id": "heldout-conflict-19",
+      "arm": "passage_only_kev",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": false,
+      "review_notes": "Supported conflict and useful caveats about primary DB/metric meaning. Raw Kev selected conflict, but the answer then falsely says no Kev inference occurred; status is evaluated and inference_completed=1."
+    },
+    {
+      "case_id": "heldout-conflict-19",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "The answer accurately states Kev selected insufficient and preserves primary-database/metric-definition/supersession gaps, but it undercalls the benchmark conflict: the source claims give incompatible age statements with matching actor, scope, service-objective status, and date. Source IDs/qualifiers are correct."
+    },
+    {
+      "case_id": "heldout-compatible-13",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Correctly treats beta through May and general availability from June as sequential; avoids equating announcement with live production. Exact dates/claims and owner are supported. Unavailable disclosure uses the required phrase; no inference is correct for baseline."
+    },
+    {
+      "case_id": "heldout-compatible-13",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": false,
+      "review_notes": "Compatible conclusion and date/status qualifiers are supported. It says Kev evaluated the supplied passages, then falsely says no Kev inference occurred; evaluated status/inference_completed=1."
+    },
+    {
+      "case_id": "heldout-compatible-13",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Correctly distinguishes sequential periods and limits conclusions about production behavior; preserves unknown version/retrieval time. Exact claims and ownership are grounded."
+    },
+    {
+      "case_id": "heldout-compatible-18",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Correctly distinguishes web and mobile cache scopes and avoids assigning those systems to named products. Preserves uncertainty about whether intervals are target or schedule. No Kev inference is correct for baseline."
+    },
+    {
+      "case_id": "heldout-compatible-18",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": false,
+      "review_notes": "Compatible conclusion and evidence gaps are appropriate, but the answer falsely says the passage-only evaluation returned no answer/no Kev inference; raw result has status evaluated, selected conflict, and inference_completed=1."
+    },
+    {
+      "case_id": "heldout-compatible-18",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Correctly distinguishes web/mobile scopes and notes client-note status does not prove production behavior. Claims and qualifiers match the sources."
+    },
+    {
+      "case_id": "heldout-conflict-20",
+      "arm": "baseline",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported conflict: the same actor/scope/status/date has a second-review requirement versus permission to publish without one. Source claims and Commerce Operations ownership are grounded. No Kev inference is appropriate."
+    },
+    {
+      "case_id": "heldout-conflict-20",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": false,
+      "review_notes": "It explicitly recognizes a direct disagreement on matching actor/scope/status/date, so selecting insufficient is an unsupported undercall; the limitation says no Kev inference despite evaluated status/inference_completed=1. Source claims and qualifiers are otherwise accurate."
+    },
+    {
+      "case_id": "heldout-conflict-20",
+      "arm": "graph_decision",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported direct contradiction: requirement for a second reviewer vs permission to publish without one, under matching qualifiers. Kev itself selected conflict. Exact quotes and Commerce Operations owner are grounded; caveats properly bound to >20% changes."
+    },
+    {
+      "case_id": "heldout-conflict-17",
+      "arm": "baseline",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Exact 10-minute vs 30-minute cadence for same actor/scope/status/date supports conflict. Quotes and Business Systems ownership are exact; no Kev inference is correct for baseline."
+    },
+    {
+      "case_id": "heldout-conflict-17",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": false,
+      "review_notes": "The answer accurately states the two exact cadences under matching qualifiers but chooses insufficient, an unsupported undercall. It also says no Kev inference occurred despite evaluated status/inference_completed=1; it correctly notes graph was omitted."
+    },
+    {
+      "case_id": "heldout-conflict-17",
+      "arm": "graph_decision",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported cadence conflict; the explanation preserves no-supersession and indexed/live/version limits. Citations, status, owner, date, actor, and scope match."
+    },
+    {
+      "case_id": "heldout-insufficient-05",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Insufficient is justified because current ownership depends on an undated migration completion. Risk/Support ownership and conditional timing are explicitly in the quoted statements; labels and owners are grounded, not fabricated."
+    },
+    {
+      "case_id": "heldout-insufficient-05",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly preserves the unresolved migration completion and current owner. The phrases that Kev evaluated passages and that graph inference was omitted are consistent with evaluated status/inference_completed=1; citations and ownership are grounded."
+    },
+    {
+      "case_id": "heldout-insufficient-05",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly leaves current ownership unresolved pending migration status. It preserves missing date/version/live status and does not invent a structured actor/owner field; Risk/Support claims are quoted exactly."
+    },
+    {
+      "case_id": "heldout-conflict-03",
+      "arm": "baseline",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported location conflict: Frankfurt vs Dublin for the same primary copy, actor/scope/status/date. It distinguishes primary copies from replicas/backups. Citations and Infrastructure owner are grounded."
+    },
+    {
+      "case_id": "heldout-conflict-03",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": false,
+      "review_notes": "The answer explicitly says the locations are incompatible under the same qualifiers but selects insufficient; this is an unsupported undercall. It falsely says no Kev inference occurred despite evaluated status/inference_completed=1. Quotes and qualifiers are correct."
+    },
+    {
+      "case_id": "heldout-conflict-03",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "It accurately cites conflicting Frankfurt/Dublin locations and matching actor/scope/status/date, yet selects insufficient because no source supersedes the other. Supersession affects which claim governs, not whether the claims conflict; this undercalls the conflict. Exact citations/owners are grounded."
+    },
+    {
+      "case_id": "heldout-conflict-13",
+      "arm": "baseline",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Enabled vs disabled defaults conflict under matching stated actor/scope/status/effective date. Quotes and Checkout ownership are grounded; the flag identity/rollout limitation is appropriate. Baseline correctly says no Kev inference occurred."
+    },
+    {
+      "case_id": "heldout-conflict-13",
+      "arm": "passage_only_kev",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": false,
+      "review_notes": "Conflict and qualifiers are correct, but the answer falsely says no Kev inference occurred despite evaluated status/inference_completed=1. It reports Kev selected insufficient; the final answer's conflict call is independently supported by the quoted defaults."
+    },
+    {
+      "case_id": "heldout-conflict-13",
+      "arm": "graph_decision",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported enabled-vs-disabled conflict with matching qualifiers; no supersession or flag-identifying details are invented. Citations and ownership/status are grounded."
+    },
+    {
+      "case_id": "heldout-compatible-08",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "P1 and P3 intervals apply to distinct severity scopes, so compatible is supported. Citations/status/owner are grounded and limitations preserve other severity/measurement gaps. Baseline did not run Kev; its unavailable disclosure is cautious but could be read as tool failure rather than absent-by-design."
+    },
+    {
+      "case_id": "heldout-compatible-08",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": false,
+      "review_notes": "Compatible conclusion, qualifiers, and open questions are supported. It falsely says no Kev inference occurred despite evaluated status/inference_completed=1."
+    },
+    {
+      "case_id": "heldout-compatible-08",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Correctly distinguishes P1/P3 scopes and leaves other severities/criteria unknown. Exact citations/statuses and Reliability ownership are grounded."
+    },
+    {
+      "case_id": "heldout-conflict-15",
+      "arm": "baseline",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Exact 20 vs 30 minute schedules conflict under matching qualifiers. It preserves limits around delays/unscheduled updates and cites both sources. The Kev-unavailable wording reflects that baseline has no decision tool; no inference occurred."
+    },
+    {
+      "case_id": "heldout-conflict-15",
+      "arm": "passage_only_kev",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": false,
+      "review_notes": "Conflict is supported and qualifiers are grounded. The answer says Kev selected insufficient (consistent with its raw result), then falsely says no Kev inference occurred despite evaluated status/inference_completed=1."
+    },
+    {
+      "case_id": "heldout-conflict-15",
+      "arm": "graph_decision",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported cadence conflict with exact quotes, matching actor/scope/status/date/owner, and appropriate caveats about scheduled versus maximum gaps and live verification."
+    },
+    {
+      "case_id": "heldout-insufficient-14",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly leaves scope overlap unresolved: general reports versus restricted exports may or may not overlap. Source IDs/quotes are exact; owner/effective time remain unknown."
+    },
+    {
+      "case_id": "heldout-insufficient-14",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": true,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": false,
+      "review_notes": "Insufficient reasoning is appropriate, but it invents citation IDs `record-1.md#source_1` and `record-2.md#source_2` instead of returned `source_1`/`source_2`; score confirms no valid citations/quotes. It also falsely says no Kev inference occurred despite evaluated status/inference_completed=1."
+    },
+    {
+      "case_id": "heldout-insufficient-14",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly preserves non-equivalent export scopes, status/time gaps, and does not resolve whether categories overlap. It quotes an embedded hostile instruction only as source text and explicitly treats it as untrusted. IDs and statuses are accurate."
+    },
+    {
+      "case_id": "heldout-insufficient-02",
+      "arm": "baseline",
+      "supported_conflict": false,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "False conflict: periods differ but source statuses differ (released vs support ticket), and effective time/authority are missing. The response explicitly says the applicable period cannot be resolved, so insufficient is the supported conclusion. Quotes are exact; it correctly labels the hostile instruction as fictional source content by not following it."
+    },
+    {
+      "case_id": "heldout-insufficient-02",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": false,
+      "review_notes": "No parsed final answer (`missing_or_malformed_final_json`) despite an evaluated inference; no answer/citations/limitations to review. This row should count as a failed response, not be silently dropped."
+    },
+    {
+      "case_id": "heldout-insufficient-02",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly concludes insufficient because the excerpts have different statuses and no actor/effective time/version; it notes the injection as untrusted and that the graph assertion adds no resolution. Quotes and IDs are exact; no owner is invented."
+    },
+    {
+      "case_id": "heldout-compatible-09",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Correctly distinguishes internal case notes visible to support staff from public customer replies. Exact claims and Customer Support owner are supported; no Kev inference is appropriate for baseline."
+    },
+    {
+      "case_id": "heldout-compatible-09",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "Evidence describes different note/reply categories and audiences, so compatible is supported; selecting insufficient overstates the need to prove no possible overlap. It transparently reports Kev selected insufficient and that graph was omitted. Citations and qualifiers are exact."
+    },
+    {
+      "case_id": "heldout-compatible-09",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "The response itself says the scopes are different and do not establish incompatible rules, supporting compatible; final insufficient is an undercall. It accurately reports the evidence/time limits and has exact citations/statuses/owners."
+    },
+    {
+      "case_id": "heldout-compatible-17",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Distinct unused starter vs enterprise scopes support compatible durations. Exact dates, statuses, and Identity ownership are grounded; no Kev inference is correct for baseline."
+    },
+    {
+      "case_id": "heldout-compatible-17",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "The stated scopes are plan-specific, so compatible is supported; selecting insufficient overstates the uncertainty. It correctly says Kev assessed passages only and graph was omitted. Citations and qualifiers match."
+    },
+    {
+      "case_id": "heldout-compatible-17",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "Different starter/enterprise scopes explain the durations; final insufficient is an undercall even though the limitation recognizes those scopes. Exact sources, statuses, dates, and owner are grounded."
+    },
+    {
+      "case_id": "heldout-conflict-05",
+      "arm": "baseline",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "30 vs 15 days after issue conflicts for matching actor/scope/status/date. It correctly distinguishes interval from calendar due date and does not invent an issue date. Exact citations/owner are grounded."
+    },
+    {
+      "case_id": "heldout-conflict-05",
+      "arm": "passage_only_kev",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported conflict and useful due-date/issue-date limitation. It accurately reports Kev's low-confidence conflict selection and that graph assertions were omitted; no fabricated owner/status."
+    },
+    {
+      "case_id": "heldout-conflict-05",
+      "arm": "graph_decision",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported incompatible intervals under matching qualifiers. It appropriately avoids claiming a renewal-event deadline and preserves indexed/live/version limitations. Quotes and Billing owner are grounded."
+    },
+    {
+      "case_id": "heldout-insufficient-12",
+      "arm": "baseline",
+      "supported_conflict": false,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "False conflict: same broad scope but different guide statuses and no effective time/audience/conditions. The answer says which timing governs cannot be resolved, so insufficient is supported. Quotes are exact."
+    },
+    {
+      "case_id": "heldout-insufficient-12",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": true,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly concludes the timing comparison is insufficient and preserves missing audience/conditions/time. Source IDs are valid, but the first quote changes initial lowercase 'renewal' to uppercase 'Renewal', so it is not an exact source substring (mechanical all_quotes_exact=false)."
+    },
+    {
+      "case_id": "heldout-insufficient-12",
+      "arm": "graph_decision",
+      "supported_conflict": false,
+      "citation_error": true,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "False conflict: answer itself says actor/version/effective time/conditions are unspecified and neither guide supersedes the other; insufficient is required. Both quotes capitalize 'Renewal' unlike the original lowercase text (all_quotes_exact=false); IDs and status labels are otherwise grounded."
+    },
+    {
+      "case_id": "heldout-compatible-14",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible: self-hosted and hosted attachment storage have distinct scopes. Both exact quotes, scope/status/date fields, Infrastructure owner, and citations are supported. No Kev inference is accurate for baseline."
+    },
+    {
+      "case_id": "heldout-compatible-14",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": false,
+      "review_notes": "Compatible scopes, exact quotations, metadata, and Infrastructure ownership are supported. The passage-only path did run an evaluation, so “No Kev inference occurred” and “did not return an assessment answer” are false; graph assertions were omitted as stated."
+    },
+    {
+      "case_id": "heldout-compatible-14",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Distinct deployment scopes support compatible; source quotations, metadata, and owner are grounded. The answer accurately says the assessment found insufficient evidence of conflict, distinguishes that from the compatible classification, and discloses that targeted follow-up failed."
+    },
+    {
+      "case_id": "heldout-compatible-16",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Different scopes—maintenance reporting and write-operation availability—support compatible. Exact quotes, statuses, date, Reliability owner, and missing timing/other-operation caveats are grounded; no Kev inference is accurate for baseline."
+    },
+    {
+      "case_id": "heldout-compatible-16",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "The final insufficient classification is an overcall: the excerpts describe different scopes and can both hold, which supports compatible. Its explanation recognizes that distinction and avoids asserting a contradiction; quotes and metadata are accurate. It correctly reports that the passage-only evaluation selected insufficient and omitted graph assertions."
+    },
+    {
+      "case_id": "heldout-compatible-16",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible is supported because status-page reporting and write-operation availability are distinct scopes. Exact quotes, statuses, date, Reliability owner, and limitations about timing and other services are preserved."
+    },
+    {
+      "case_id": "heldout-insufficient-16",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly says ownership is unresolved: Product considering rules and Support raising a question do not assign accountability. Exact citations/quotes, statuses, and unknown owner are supported; it notes absent authority, timing, and supersession."
+    },
+    {
+      "case_id": "heldout-insufficient-16",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly preserves insufficient ownership evidence and explicitly separates each team’s activity from ownership. Exact citations/quotes and statuses are grounded; no owner is invented. It accurately says Kev assessed supplied passages only and omitted graph assertions."
+    },
+    {
+      "case_id": "heldout-insufficient-16",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly keeps ownership unknown and explains that the graph’s shared-topic grouping does not establish an owner. Source quotes, statuses, citations, and caveats are supported; no fabricated owner/status."
+    },
+    {
+      "case_id": "heldout-insufficient-08",
+      "arm": "baseline",
+      "supported_conflict": false,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "False conflict: one excerpt concerns EU uploads and another attachments, with different source statuses and no effective time; the answer itself says equivalence and supersession are unresolved, so insufficient is supported. Citations/quotes and statuses are accurate, and it does not invent an owner. No Kev inference is appropriate for baseline."
+    },
+    {
+      "case_id": "heldout-insufficient-08",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly treats the differing location statements as insufficient because their data/component match, timing, authority, and supersession are unclear. Exact source quotes/IDs and statuses are grounded; owner remains unknown. It accurately reports Kev’s passage-only insufficient assessment and omission of graph assertions."
+    },
+    {
+      "case_id": "heldout-insufficient-08",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly preserves insufficient: scope and status differ, timing and actor are missing, and supersession is unknown. Exact citations, quotes, and statuses are grounded; it does not invent ownership or production behavior."
+    },
+    {
+      "case_id": "heldout-insufficient-17",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly keeps the approval rule unresolved because the draft runbook and ticket differ in status and timing/authority/supersession are missing; Security exclusivity is unknown. Quotes, actor readings, and statuses are supported. No Kev inference is accurate for baseline."
+    },
+    {
+      "case_id": "heldout-insufficient-17",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": false,
+      "review_notes": "Insufficient and the approval-rule caveats are supported; quotes, actors, statuses, and unknown owner are grounded. However, “No Kev inference occurred” is false for this evaluated passage-only run, even though it also says the evaluation returned insufficient; graph omission is accurate."
+    },
+    {
+      "case_id": "heldout-insufficient-17",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly treats the differing approval statements as insufficient without matching status/time or established authority; it asks whether Security is exclusive and whether support leads may also approve. Exact citations and statuses are grounded; no owner is invented."
+    },
+    {
+      "case_id": "heldout-insufficient-04",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly says one retrieved 30-day note cannot resolve a separate 60-day claim or other scopes/conditions. The exact source citation/quote/status is accurate; no owner is invented. No Kev inference is appropriate for baseline."
+    },
+    {
+      "case_id": "heldout-insufficient-04",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": false,
+      "review_notes": "Correctly says the single 30-day passage cannot resolve a 60-day comparison and preserves missing timing/version/owner. Citation, quote, and status are grounded. “No Kev inference occurred” is false: the passage-only evaluation selected insufficient; graph assertions were omitted."
+    },
+    {
+      "case_id": "heldout-insufficient-04",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly says no 60-day source was retrieved and actor, time, version, and supersession remain unknown. The linked record citation/quote/status are accurate. Decision evaluation returned insufficient_context with no answers, so the no-inference disclosure is accurate."
+    },
+    {
+      "case_id": "heldout-insufficient-09",
+      "arm": "baseline",
+      "supported_conflict": false,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": true,
+      "insufficient_preserved": false,
+      "limitations_preserved": false,
+      "review_notes": "False conflict: the migration page says shutdown is scheduled, while a different-status status excerpt says v1 remains enabled; no matching status or effective time is established, so whether it is already disabled is unresolved. The answer changes source statuses to “scheduled for shutdown” and “enabled” instead of preserving the fixture’s “migration page” and “status excerpt.” The rendered limitation is not reviewable; the owner remains unknown."
+    },
+    {
+      "case_id": "heldout-insufficient-09",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": false,
+      "review_notes": "No parsed final answer (missing_or_malformed_final_json) despite decision status evaluated and inference_completed=1; no claims, citations, or limitations can be semantically reviewed. Treat as a failed response, not a no-inference case."
+    },
+    {
+      "case_id": "heldout-insufficient-09",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly concludes insufficient: scheduled October shutdown and a differently labeled, undated enabled-status excerpt do not establish whether v1 is disabled now. Exact source IDs/quotes/statuses are preserved; timing, actor, environment, version, retrieval time, and supersession gaps are noted."
+    },
+    {
+      "case_id": "heldout-conflict-18",
+      "arm": "baseline",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported conflict: 72 vs 48 hours under matching actor, scope, approved status, and effective date. Quotes, citations, owner, and status are exact; it preserves unresolved precedence and missing clock-start/measurement/exception details. No Kev inference is accurate for baseline."
+    },
+    {
+      "case_id": "heldout-conflict-18",
+      "arm": "passage_only_kev",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported conflict with matching actor/scope/status/date. Exact quotes, citations, and Trust & Safety ownership are grounded; clock-start, counting, exceptions, and precedence remain unresolved. The answer accurately says the passage-only evaluation selected insufficient as an assessment but did not consider graph evidence."
+    },
+    {
+      "case_id": "heldout-conflict-18",
+      "arm": "graph_decision",
+      "supported_conflict": true,
+      "citation_error": true,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Conflict is supported and the limitations preserve precedence, source verification, timing/version, and clock-start gaps. The citation fields are invalid: `source_1 (record-1.md)` and `source_2 (record-2.md)` do not match the returned IDs `source_1` and `source_2`, so neither citation maps mechanically despite the filenames being real."
+    },
+    {
+      "case_id": "heldout-conflict-10",
+      "arm": "baseline",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported conflict: P1 alerts both bypass and remain muted during quiet hours under matching actor, scope, status, and date. Exact citations, quotes, statuses, and Incident Management owner are grounded; limits stay within P1 responders and do not claim broader coverage. No Kev inference is correct for baseline."
+    },
+    {
+      "case_id": "heldout-conflict-10",
+      "arm": "passage_only_kev",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": false,
+      "review_notes": "The conflicting policy claims and same qualifiers support conflict; exact citations, quotes, owner, and status are grounded. However, “No Kev inference occurred” is false for this evaluated passage-only run, which selected insufficient; graph assertions were indeed omitted."
+    },
+    {
+      "case_id": "heldout-conflict-10",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": false,
+      "review_notes": "No parsed final answer (missing_or_malformed_final_json) despite an evaluated inference; no answer, claims, citations, or limitations can be semantically reviewed. Treat as a failed response, not a no-inference case."
+    },
+    {
+      "case_id": "heldout-compatible-05",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Different releases and effective dates document a rollout change, not incompatible simultaneous states. Citations, quotes, dates, statuses, and Checkout ownership are grounded; the answer limits its conclusion to the stated rollout and lists missing qualifiers. No Kev inference is accurate for baseline."
+    },
+    {
+      "case_id": "heldout-compatible-05",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": false,
+      "review_notes": "The final insufficient classification is an overcall: releases 1.8 and 1.9 with different dates support a change rather than a conflict. Its caveats are relevant and citations/quotes/status/date/Checkout owner are accurate, but it falsely says no Kev inference occurred; passage-only evaluation ran and selected insufficient, with graph omitted."
+    },
+    {
+      "case_id": "heldout-compatible-05",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible is supported as a change between releases 1.8 and 1.9, with different effective dates. Exact citations, quotes, statuses, dates, and owner are grounded; it distinguishes that from proof of production behavior and lists missing rollout/flag qualifiers. Graph-arm decision evaluation did not execute, so its disclosure is accurate."
+    },
+    {
+      "case_id": "heldout-compatible-10",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible: v1 and replacement v2 define successive periods and rounding bases, supporting a policy change rather than same-period conflict. Citations, source claims, statuses, date ranges, and Tax Platform ownership are grounded; missing calculation qualifiers are noted."
+    },
+    {
+      "case_id": "heldout-compatible-10",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": false,
+      "review_notes": "Compatible is supported by successive policy versions/effective periods; exact citations, claims, status, dates, owner, and transition caveats are grounded. “No Kev inference occurred” is false: the passage-only evaluation ran and selected compatible, though graph assertions were omitted."
+    },
+    {
+      "case_id": "heldout-compatible-10",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible is supported by successive v1/v2 periods with different rounding bases. Exact citations and quoted excerpts, metadata, and Tax Platform owner are grounded. It preserves uncertainty about formal approval, supersession across contexts, production implementation, and other calculation qualifiers."
+    },
+    {
+      "case_id": "heldout-compatible-12",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible: viewing shared project folders and downloading restricted exports are distinct access scopes, so the permissions do not conflict. Quotes/citations and Access Governance ownership are grounded; the answer preserves the differing statuses and unknown precedence."
+    },
+    {
+      "case_id": "heldout-compatible-12",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": false,
+      "review_notes": "Compatible is supported by distinct view-versus-download actions/resources; exact source IDs/quotes, statuses, date, and Access Governance owner are grounded. It nevertheless says “No Kev inference occurred” although the passage-only run evaluated the evidence and selected insufficient; graph assertions were omitted."
+    },
+    {
+      "case_id": "heldout-compatible-12",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "The answer overcalls insufficient: viewing folders and downloading restricted exports are distinct actions, with no direct contradiction, supporting compatible. It preserves the uncertainty about overlap between those resources and about authority/precedence. Source IDs, quotes, status/date, and owner are grounded; it accurately reports Kev assessed insufficient."
+    },
+    {
+      "case_id": "heldout-conflict-07",
+      "arm": "baseline",
+      "supported_conflict": true,
+      "citation_error": true,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "The matching current-policy claims (five vs ten attempts, same actor/scope/date) support conflict; limitations and Identity Security ownership are grounded. Citation error: the second quote changes the source semicolon after “current security policy” to a period, so it is not an exact quote."
+    },
+    {
+      "case_id": "heldout-conflict-07",
+      "arm": "passage_only_kev",
+      "supported_conflict": true,
+      "citation_error": true,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": false,
+      "review_notes": "The two thresholds conflict under matching actor, scope, status, and date, so final insufficient is an undercall. Citation error: at least the second quotation is not exact (score also rejects exact-quote matching). It also falsely says “No Kev inference occurred” although the passage-only evaluator ran and selected insufficient; graph omission is accurate."
+    },
+    {
+      "case_id": "heldout-conflict-07",
+      "arm": "graph_decision",
+      "supported_conflict": false,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "Undercalls a clear conflict: five and ten failed attempts differ while actor, scope, current-policy status, and effective date match. Citations/quotes, owner, and metadata are grounded, and it accurately preserves that no superseding authority is shown."
+    },
+    {
+      "case_id": "heldout-compatible-11",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible: write acknowledgment by the primary database and search reads from replicas describe distinct operations. Quotes, source IDs, metadata, and Search Platform ownership are grounded; the answer preserves missing consistency/delay qualifiers."
+    },
+    {
+      "case_id": "heldout-compatible-11",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": false,
+      "review_notes": "The final insufficient classification is an overcall: writes and search reads are different operations, so the statements are compatible. Its explanation recognizes the distinction and missing read-path details, and citations/metadata are accurate. “No Kev inference occurred” is false because passage-only evaluation ran and selected insufficient; graph assertions were omitted."
+    },
+    {
+      "case_id": "heldout-compatible-11",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible is supported by different operations (write acknowledgment and replica reads). Exact citations, quotes, qualifiers, and Search Platform owner are grounded. It accurately distinguishes Kev’s insufficient assessment from the JSON compatible classification."
+    },
+    {
+      "case_id": "heldout-insufficient-07",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly says the 180-day proposal and 365-day dashboard note do not establish production retention. Exact citations/quotes and statuses are preserved; no owner is invented, and missing authoritative status/date/owner are identified. No Kev assessment/inference is accurate for baseline."
+    },
+    {
+      "case_id": "heldout-insufficient-07",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": false,
+      "review_notes": "Correctly preserves insufficient production evidence because a proposal and dashboard note do not establish an operative value. Exact source IDs/quotes/statuses and unknown owner are grounded. “No Kev inference occurred” is false: the passage-only evaluation ran and selected insufficient; graph evidence was omitted."
+    },
+    {
+      "case_id": "heldout-insufficient-07",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": false,
+      "review_notes": "Correctly preserves insufficient production evidence: one duration is a proposal and the other a dashboard note, with effective time/authority unknown. Citations, quotes, and statuses are grounded; no owner is invented. However, it says “no Kev inference occurred” even though decision evaluation ran and selected insufficient."
+    },
+    {
+      "case_id": "heldout-compatible-15",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible is supported: high-risk card-not-present cases and low-risk card-present cases have distinct routing qualifiers. Exact source IDs/quotes, dates, statuses, and Risk ownership are grounded; it notes missing rules for other/overlapping cases."
+    },
+    {
+      "case_id": "heldout-compatible-15",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "The insufficient classification is an overcall: high-risk card-not-present and low-risk card-present cases are distinct scopes, supporting compatible. Citations and qualifiers are grounded, and it identifies incompleteness/overlap questions. It accurately reports that Kev selected conflict while its sufficiency assessment was inconclusive; graph was omitted."
+    },
+    {
+      "case_id": "heldout-compatible-15",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "The insufficient classification is an overcall: the two queue assignments cover different risk/card-presence categories, and record 3 gives a router destination without contradicting the Risk queue. Source IDs/quotes/metadata and Risk owner are grounded; it accurately reports Kev selected insufficient and preserves scope/exhaustiveness caveats."
+    },
+    {
+      "case_id": "heldout-conflict-04",
+      "arm": "baseline",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported conflict: “only Risk” versus “Support and Risk” for the same queue, actor, scope, approved status, and date. Exact quotes, citations, Risk owner, and missing role/visibility qualifiers are grounded; no Kev inference is accurate for baseline."
+    },
+    {
+      "case_id": "heldout-conflict-04",
+      "arm": "passage_only_kev",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": false,
+      "review_notes": "Supported conflict and grounded citations, quotes, owner, and metadata. However, “No Kev inference occurred” is false for the evaluated passage-only run, which selected insufficient; the answer correctly says graph assertions were omitted."
+    },
+    {
+      "case_id": "heldout-conflict-04",
+      "arm": "graph_decision",
+      "supported_conflict": false,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "Undercalls a clear conflict: the two approved policies make incompatible queue-visibility claims with matching actor, scope, and date. Its own explanation acknowledges incompatible claims but treats absent supersession as preventing resolution; precedence may be unresolved while the contradiction remains. Citations, quotes, owner, and statuses are grounded."
+    },
+    {
+      "case_id": "heldout-compatible-03",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible: EU new subscriptions default to EUR and UK new subscriptions to GBP, distinct regional scopes. Exact source IDs/quotes, actor, statuses, dates, and Billing owner are grounded; other regions, existing subscriptions, and overrides remain outside the evidence."
+    },
+    {
+      "case_id": "heldout-compatible-03",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": false,
+      "review_notes": "Compatible is supported by different EU/UK scopes; source IDs/quotes, metadata, and Billing owner are grounded, with limits on other customer types and production behavior. “No Kev inference occurred” is false: the passage-only evaluation ran and selected insufficient; graph assertions were omitted."
+    },
+    {
+      "case_id": "heldout-compatible-03",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible regional defaults are supported. Exact citations, quotations, actors, statuses, dates, and Billing ownership are grounded; it accurately distinguishes Kev’s insufficient assessment from the final compatible determination and preserves index/live-version limitations."
+    },
+    {
+      "case_id": "heldout-conflict-12",
+      "arm": "baseline",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported conflict: exactly 7 versus 30 days under matching actor, scope, approved target status, and date. Exact citations, quotations, Privacy Operations owner, and source metadata are grounded; it notes unresolved precedence and ambiguity about closed-account applicability/verification."
+    },
+    {
+      "case_id": "heldout-conflict-12",
+      "arm": "passage_only_kev",
+      "supported_conflict": true,
+      "citation_error": true,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "The 7-day and 30-day claims conflict under matching qualifiers; it preserves the unresolved applicability to closed accounts and verification event. Citation error: both source_id values append filenames, so `source_1 (record-1.md)` and `source_2 (record-2.md)` fail to match the returned IDs, despite accurate filenames. It accurately reports the passage-only conflict selection."
+    },
+    {
+      "case_id": "heldout-conflict-12",
+      "arm": "graph_decision",
+      "supported_conflict": false,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "Undercalls the matching 7-day vs 30-day approved targets as insufficient because closed-account applicability and supersession are unresolved. The records still conflict for their shared verified-deletion-request scope; the caveats do not erase that conflict. IDs, quotes, statuses, owner, and qualifiers are grounded."
+    },
+    {
+      "case_id": "heldout-compatible-19",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible: price changes up to 10% and above 10% form distinct thresholds with different review requirements. Exact citations/quotes, status, date, and Commerce Operations owner are grounded; it identifies missing percentage calculation and reviewer-role details."
+    },
+    {
+      "case_id": "heldout-compatible-19",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": false,
+      "review_notes": "The final insufficient classification is an overcall: up-to-10% and above-10% ranges are distinct, supporting compatible. It preserves relevant procedure-authority/role caveats and cites valid source IDs/claims. It falsely says “No Kev inference occurred”; the passage-only evaluation ran and selected insufficient, while graph assertions were omitted."
+    },
+    {
+      "case_id": "heldout-compatible-19",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "The final insufficient classification is an overcall: price changes up to 10% and above 10% are distinct ranges with different review requirements, supporting compatible. Source IDs/quotes, metadata, and Commerce Operations owner are grounded; it accurately distinguishes the failed targeted follow-up from the completed first evaluation."
+    },
+    {
+      "case_id": "heldout-compatible-06",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible: sandbox-only keys and production-only keys apply to different request scopes. Exact citations, quotes, actor, status, date, and Developer Experience owner are grounded; unmentioned cross-environment behavior is left unresolved."
+    },
+    {
+      "case_id": "heldout-compatible-06",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": false,
+      "review_notes": "Compatible is supported by distinct sandbox/production request scopes; source metadata/citations are grounded. It inaccurately says “No Kev inference occurred” although the passage-only evaluation ran and selected conflict; graph assertions were omitted."
+    },
+    {
+      "case_id": "heldout-compatible-06",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible is supported by distinct sandbox and production scopes. Exact citations, quotes, status, dates, owner, and caveats about versions/retrieval/live behavior are grounded."
+    },
+    {
+      "case_id": "heldout-insufficient-11",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": true,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "The evidence supports insufficient: the operational note and design proposal differ in status, with effective time/currentness/approval unresolved. The answer’s caveats are sound, but it labels the pair compatible and its source IDs append filenames, so neither citation matches the retrieved IDs."
+    },
+    {
+      "case_id": "heldout-insufficient-11",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly concludes insufficient because operational-note and proposal statuses differ and no effective time or supersession is shown. Exact source IDs, quotes, and statuses are grounded; no owner is invented. It accurately says Kev assessed passages only and omitted graph assertions."
+    },
+    {
+      "case_id": "heldout-insufficient-11",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly concludes insufficient because the 15-minute operational note and 60-minute design proposal do not establish the current interval. Citations, quotes, statuses, and unknown owner are accurate; missing time/version/authority/supersession are preserved."
+    },
+    {
+      "case_id": "heldout-conflict-06",
+      "arm": "baseline",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported conflict: “within five minutes” and “between 30 and 60 minutes” are incompatible for the same catalog-change scope, actor, service-objective status, and quarter. Exact quotes/citations, Search Platform owner, and missing guarantee/measurement qualifiers are grounded; no Kev inference is accurate for baseline."
+    },
+    {
+      "case_id": "heldout-conflict-06",
+      "arm": "passage_only_kev",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": false,
+      "review_notes": "The same-scope timing claims conflict, so final insufficient is an undercall; “within five minutes” states a tighter bound than 30–60 minutes. Claims and metadata are accurate. “No Kev inference occurred” is false because the passage-only evaluation ran and selected insufficient; graph was omitted."
+    },
+    {
+      "case_id": "heldout-conflict-06",
+      "arm": "graph_decision",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": false,
+      "review_notes": "The final insufficient classification undercalls conflicting delays for identical actor/scope/status/period; a five-minute upper bound cannot match 30–60 minutes. Exact citations, quotes, owner, and metadata are grounded; it accurately reports Kev assessed insufficient but does not preserve the conflict conclusion."
+    },
+    {
+      "case_id": "heldout-compatible-20",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible: basic- and premium-tier support describe distinct scopes. Exact source IDs/quotes, actor, statuses, date, and Customer Support owner are grounded; meanings of 24-hour coverage, channels, holidays, and service commitments remain unspecified."
+    },
+    {
+      "case_id": "heldout-compatible-20",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "The insufficient classification is an overcall: different service tiers support compatible statements, and the answer itself says no direct contradiction is established. Quotes, citations, and metadata are grounded; it accurately says Kev assessed passages only and omitted graph evidence."
+    },
+    {
+      "case_id": "heldout-compatible-20",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible is supported by distinct basic/premium-tier scopes. Exact citations, quotes, support-team actor, status/date, and Customer Support owner are grounded; it preserves ambiguity about what 24-hour coverage means and whether source versions are current."
+    },
+    {
+      "case_id": "heldout-compatible-02",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible: primary database rows and encrypted backup copies are distinct data/storage scopes, so the statements do not establish conflicting timing for the same material. Exact citations, quotes, statuses, date, and Privacy Operations owner are grounded; periods’ start event and deletion semantics remain open."
+    },
+    {
+      "case_id": "heldout-compatible-02",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": false,
+      "review_notes": "Compatible is supported by distinct primary-row and encrypted-backup scopes. Citations, claims, metadata, and Privacy Operations owner are grounded; it falsely says “No Kev inference occurred” even though the passage-only evaluation ran and selected insufficient. Graph assertions were omitted."
+    },
+    {
+      "case_id": "heldout-compatible-01",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible: staging and production retry rules cover different environments. Exact citations/quotes, actors, scopes, statuses, date, and Integrations owner are grounded; other webhook types and retry details remain out of scope."
+    },
+    {
+      "case_id": "heldout-compatible-01",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible is supported by environment-specific scopes; citations, source metadata, and Integrations ownership are grounded. It accurately reports Kev selected conflict while scope/time sufficiency was inconclusive, and says graph evidence was omitted."
+    },
+    {
+      "case_id": "heldout-compatible-02",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible: primary rows and encrypted backups are distinct data/storage scopes. Citations, quotes, dates, statuses, actor, and Privacy Operations owner are grounded; periods’ start events and the meaning of removal/expiry remain uncertain. Its statement that Kev’s insufficient assessment does not support compatibility is accurate."
+    },
+    {
+      "case_id": "heldout-insufficient-19",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly says the one retrieved 15-minute runbook note cannot resolve the unreturned 30-minute cadence or establish current authoritative behavior. Exact citation/quote/status are grounded; missing actor/date/version/conditions are identified."
+    },
+    {
+      "case_id": "heldout-insufficient-19",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly preserves insufficient: one retrieved 15-minute note does not prove there is no 30-minute rule. Citation, exact quote, and status are grounded; missing timing, owner, and operational conditions are noted. It accurately reports Kev’s passage-only insufficient selection and graph omission."
+    },
+    {
+      "case_id": "heldout-insufficient-19",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly says the 15-minute note and absent 30-minute source cannot be compared. Exact citation, quote, and status are preserved; no owner is invented. The tool returned insufficient_context with no answers, so the no-inference disclosure is accurate."
+    },
+    {
+      "case_id": "heldout-compatible-01",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible is supported by different staging and production scopes. Citations/quotes, date, status, and Integrations owner are grounded; it accurately reports Kev’s insufficient assessment without treating it as proof of compatibility."
+    },
+    {
+      "case_id": "heldout-conflict-14",
+      "arm": "baseline",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported conflict: rounding each line before summing differs from summing exact line taxes before rounding under matching actor, scope, approved status, and date. Exact quotes/citations and Tax Platform owner are grounded; precision, mode, currency, exceptions, and live status remain open."
+    },
+    {
+      "case_id": "heldout-conflict-14",
+      "arm": "passage_only_kev",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "The two rounding sequences conflict under matching qualifiers, so final insufficient is an undercall. Citations, exact quotations, owner, and statuses are grounded; relevant rounding details remain unspecified. It accurately reports Kev selected insufficient and graph assertions were omitted."
+    },
+    {
+      "case_id": "heldout-conflict-14",
+      "arm": "graph_decision",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Correctly identifies incompatible rounding sequences with matching actor/scope/status/date. Exact source IDs/quotes, owner, and metadata are grounded; it separates the supported conflict from unresolved authority and production behavior."
+    },
+    {
+      "case_id": "heldout-conflict-16",
+      "arm": "baseline",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported conflict: 7-day and 14-day expiration claims share actor, scope, current-policy status, and effective date. Citations/quotes, Identity owner, and qualifiers are grounded; the answer limits the result to enterprise email invitations and notes unanswered event/counting details."
+    },
+    {
+      "case_id": "heldout-conflict-16",
+      "arm": "passage_only_kev",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": false,
+      "review_notes": "The 7- and 14-day statements conflict under matching qualifiers and the final classification is correct. Citations/quotes and metadata are grounded. “No Kev inference occurred” is false for this evaluated passage-only run, which selected insufficient, despite the answer accurately describing that selection elsewhere."
+    },
+    {
+      "case_id": "heldout-compatible-07",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible: closed trial and closed enterprise workspaces have distinct plan scopes. Citations/quotes, statuses, actor, date, and Workspace Platform owner are grounded; purge/retention semantics and period start remain unspecified."
+    },
+    {
+      "case_id": "heldout-compatible-07",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "Insufficient is an overcall because trial and enterprise plans have distinct stated scopes; the response itself says there is no same-scope conflict. Citations and metadata are grounded; its Kev passage assessment and omission of graph evidence are reported accurately."
+    },
+    {
+      "case_id": "heldout-compatible-07",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Compatible is supported by distinct trial/enterprise plan scopes. Exact citations, quotes, statuses, date, and owner are grounded; it accurately separates Kev’s insufficient assessment from the classification and preserves period-start/exception caveats."
+    },
+    {
+      "case_id": "heldout-conflict-16",
+      "arm": "graph_decision",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "Undercalls the matching 7-day versus 14-day current-policy statements as insufficient. The citations/quotes, actor, scope, date, and Identity owner are grounded; lack of precedence leaves the governing duration unresolved but does not erase the source conflict."
+    },
+    {
+      "case_id": "heldout-insufficient-18",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly says the 10% policy-page and 15% change-memo thresholds do not establish whether the rules overlap or which supersedes the other. Exact citations/quotes and statuses are grounded; equality, timing, and applicability gaps are identified."
+    },
+    {
+      "case_id": "heldout-insufficient-18",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly preserves insufficient because the 10% policy page and 15% change memo have unknown precedence, effective dates, and applicability. Source IDs/quotes/statuses are accurate; no owner is invented. It accurately says Kev assessed supplied passages only and omitted graph assertions."
+    },
+    {
+      "case_id": "heldout-insufficient-18",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly treats overlap as unresolved given missing actor/time, distinct status labels, and no supersession relationship. Exact citations, quotes, and statuses are grounded; equality-boundary caveat is appropriate."
+    },
+    {
+      "case_id": "heldout-insufficient-10",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly says the excerpts do not identify an accountable team: “operators” is not mapped to a team, and the 30-day exception duration is not clearly linked to the runbook. Quotes, sources, statuses, and missing timing/authority are grounded; no owner is invented."
+    },
+    {
+      "case_id": "heldout-insufficient-10",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly preserves insufficient ownership evidence: the runbook names operators without their team, and neither passage assigns an explicit owner. Exact citations, quotes, and statuses are grounded; it accurately says the passage-only path omitted graph assertions."
+    },
+    {
+      "case_id": "heldout-insufficient-10",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": false,
+      "review_notes": "No parsed final answer (missing_or_malformed_final_json) despite two executed evaluations; there are no claims, citations, or limitations to review. Treat as a failed response, not a no-inference case."
+    },
+    {
+      "case_id": "heldout-insufficient-01",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly says ownership and whether the different rounding statements apply to the same qualified matter are unresolved. Exact source IDs/quotes and statuses are grounded; no owner is fabricated. It identifies missing service identity, timing, and precedence."
+    },
+    {
+      "case_id": "heldout-insufficient-01",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly keeps exception ownership unknown: Finance approval and service behavior do not assign accountability. Quotes, statuses, and source IDs are grounded; it accurately says Kev assessed passages only and omitted graph relationships."
+    },
+    {
+      "case_id": "heldout-insufficient-01",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly says the sources describe approval and behavior rather than ownership, leaving actor/service identity, status/time, and relationship unresolved. Citations/quotes/statuses are accurate; no owner is invented."
+    },
+    {
+      "case_id": "heldout-insufficient-20",
+      "arm": "baseline",
+      "supported_conflict": false,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "False conflict: 30-day storage note and 90-day compliance summary have different statuses and no effective time, version, or precedence, so the record cannot establish which duration governs. Exact citations/quotes/statuses are accurate; no owner is invented, and limitations acknowledge the gaps."
+    },
+    {
+      "case_id": "heldout-insufficient-20",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": false,
+      "review_notes": "Correctly preserves insufficient: differing statuses and absent actor/time/supersession leave applicability unresolved; “retained” does not directly establish expiry. Citations, quotes, and statuses are grounded. “No Kev inference occurred” is false: passage-only evaluation ran and its scope/time sufficiency was insufficient."
+    },
+    {
+      "case_id": "heldout-insufficient-20",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly classifies the durations as insufficient because actor, version, effective time, status precedence, and backup sub-scope are unresolved. Exact citations/quotes/statuses are grounded; it accurately reports Kev assessed insufficient and does not invent an owner."
+    },
+    {
+      "case_id": "heldout-insufficient-15",
+      "arm": "baseline",
+      "supported_conflict": false,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": false,
+      "limitations_preserved": true,
+      "review_notes": "False conflict: the 24-hour release note and 72-hour support note have different statuses, with no effective time/version or precedence, so the applicable expiry cannot be established. Exact citations/quotes/statuses are grounded; owner remains unknown and limitations acknowledge authority/currentness gaps."
+    },
+    {
+      "case_id": "heldout-insufficient-15",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": false,
+      "review_notes": "Correctly preserves insufficient because the release note and support note differ in status and timing/version/precedence are absent. Source IDs/quotes/statuses are exact. “No Kev inference occurred” is false: passage-only evaluation ran and selected insufficient; graph omission is accurately stated."
+    },
+    {
+      "case_id": "heldout-insufficient-15",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly concludes the differing release/support statuses and missing actor/time/version/supersession do not establish which expiry duration governs. Exact citations, quotes, and statuses are grounded; it accurately reports Kev assessed insufficient."
+    },
+    {
+      "case_id": "heldout-insufficient-03",
+      "arm": "baseline",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly distinguishes comparing the stated 20 MB/100 MB values from establishing an operative conflict: design note and support article differ in status and lack actor/time/product qualifiers. Exact citations/quotes/statuses are grounded; owner remains unknown. No Kev inference is accurate for baseline."
+    },
+    {
+      "case_id": "heldout-insufficient-03",
+      "arm": "passage_only_kev",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": false,
+      "review_notes": "Correctly preserves insufficient applicability evidence because the design note and support article lack matching status, actor, and time. Citations, quotes, and statuses are grounded. “No Kev inference occurred” is false: passage-only evaluation ran and selected insufficient; graph evidence was omitted."
+    },
+    {
+      "case_id": "heldout-insufficient-03",
+      "arm": "graph_decision",
+      "supported_conflict": null,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": true,
+      "limitations_preserved": true,
+      "review_notes": "Correctly says 20 MB design note and 100 MB support article cannot establish the same operative limit because actor/time/version and supersession are unresolved. Exact citations/quotes/statuses are grounded; it accurately reports Kev assessed insufficient."
+    },
+    {
+      "case_id": "heldout-conflict-08",
+      "arm": "baseline",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported conflict: include versus mask customer emails under matching actor, CSV export scope, approved-policy status, and date. Exact quotes/citations and Privacy Engineering owner are grounded; export fields/forms/configuration remain unspecified."
+    },
+    {
+      "case_id": "heldout-conflict-08",
+      "arm": "passage_only_kev",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Correctly identifies the direct include/mask contradiction under matching qualifiers. Exact source IDs/quotes, owner, and statuses are grounded; missing fields/configuration and precedence are noted. It accurately reports Kev selected compatible but did not resolve the contradiction, with graph omitted."
+    },
+    {
+      "case_id": "heldout-conflict-08",
+      "arm": "graph_decision",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported conflict for the same actor, export scope, approved status, and date. Source IDs/quotes, owner, and metadata are grounded; it preserves that precedence, version, retrieval time, and production behavior remain unverified."
+    },
+    {
+      "case_id": "heldout-conflict-11",
+      "arm": "baseline",
+      "supported_conflict": true,
+      "citation_error": false,
+      "fabricated_owner": false,
+      "incorrect_status": false,
+      "insufficient_preserved": null,
+      "limitations_preserved": true,
+      "review_notes": "Supported conflict: 60 versus 30 days for the same actor, scope, released status, and date. Exact citations/quotes, Workspace Platform owner, and missing start/count/expiry details are grounded; no Kev inference is accurate for baseline."
+    }
+  ],
+  "run_accounting": {
+    "total_result_rows": 180,
+    "completed_rows": 178,
+    "aborted_rows": 1,
+    "not_run_after_abort_rows": 1,
+    "all_completed_rows_reviewed": true,
+    "noncompleted_rows": [
+      {
+        "case_id": "heldout-conflict-11",
+        "arm": "passage_only_kev",
+        "status": "aborted",
+        "reason": "input-token budget reserve would be exceeded",
+        "final_answer_available": false,
+        "decision_statuses": [
+          "evaluated"
+        ],
+        "inference_completed": 1
+      },
+      {
+        "case_id": "heldout-conflict-11",
+        "arm": "graph_decision",
+        "status": "not_run_after_abort",
+        "reason": null,
+        "final_answer_available": false,
+        "decision_statuses": null,
+        "inference_completed": null
+      }
+    ]
+  },
+  "aggregate_by_arm_and_gold": {
+    "baseline": {
+      "planned_rows": 60,
+      "reviewed_completed_rows": 60,
+      "parsed_final_rows": 60,
+      "evaluator_classification_correct": 51,
+      "evaluator_classification_accuracy_over_planned_rows": "51/60",
+      "semantic_citation_errors": 2,
+      "fabricated_owner_findings": 0,
+      "incorrect_status_findings": 1,
+      "limitations_preserved_false": 1,
+      "gold_classifications": {
+        "conflict": {
+          "planned_rows": 20,
+          "reviewed_completed_rows": 20,
+          "parsed_final_rows": 20,
+          "evaluator_classification_correct": 20,
+          "final_conflict_classifications": 20,
+          "supported_conflict_true": 20,
+          "supported_conflict_false": 0,
+          "supported_conflict_unassessed": 0,
+          "correctly_surfaced_conflicts": 19,
+          "insufficient_preserved_true": 0,
+          "insufficient_preserved_false": 0,
+          "semantic_citation_errors": 1,
+          "limitations_preserved_false": 0
+        },
+        "compatible": {
+          "planned_rows": 20,
+          "reviewed_completed_rows": 20,
+          "parsed_final_rows": 20,
+          "evaluator_classification_correct": 20,
+          "final_conflict_classifications": 0,
+          "supported_conflict_true": 0,
+          "supported_conflict_false": 0,
+          "supported_conflict_unassessed": 20,
+          "correctly_surfaced_conflicts": 0,
+          "insufficient_preserved_true": 0,
+          "insufficient_preserved_false": 0,
+          "semantic_citation_errors": 0,
+          "limitations_preserved_false": 0
+        },
+        "insufficient": {
+          "planned_rows": 20,
+          "reviewed_completed_rows": 20,
+          "parsed_final_rows": 20,
+          "evaluator_classification_correct": 11,
+          "final_conflict_classifications": 8,
+          "supported_conflict_true": 0,
+          "supported_conflict_false": 8,
+          "supported_conflict_unassessed": 12,
+          "correctly_surfaced_conflicts": 0,
+          "insufficient_preserved_true": 11,
+          "insufficient_preserved_false": 9,
+          "semantic_citation_errors": 1,
+          "limitations_preserved_false": 1
+        }
+      }
+    },
+    "passage_only_kev": {
+      "planned_rows": 60,
+      "reviewed_completed_rows": 59,
+      "parsed_final_rows": 57,
+      "evaluator_classification_correct": 41,
+      "evaluator_classification_accuracy_over_planned_rows": "41/60",
+      "semantic_citation_errors": 4,
+      "fabricated_owner_findings": 0,
+      "incorrect_status_findings": 0,
+      "limitations_preserved_false": 36,
+      "gold_classifications": {
+        "conflict": {
+          "planned_rows": 20,
+          "reviewed_completed_rows": 19,
+          "parsed_final_rows": 19,
+          "evaluator_classification_correct": 13,
+          "final_conflict_classifications": 13,
+          "supported_conflict_true": 16,
+          "supported_conflict_false": 0,
+          "supported_conflict_unassessed": 3,
+          "correctly_surfaced_conflicts": 12,
+          "insufficient_preserved_true": 0,
+          "insufficient_preserved_false": 6,
+          "semantic_citation_errors": 2,
+          "limitations_preserved_false": 13
+        },
+        "compatible": {
+          "planned_rows": 20,
+          "reviewed_completed_rows": 20,
+          "parsed_final_rows": 20,
+          "evaluator_classification_correct": 11,
+          "final_conflict_classifications": 0,
+          "supported_conflict_true": 0,
+          "supported_conflict_false": 0,
+          "supported_conflict_unassessed": 20,
+          "correctly_surfaced_conflicts": 0,
+          "insufficient_preserved_true": 0,
+          "insufficient_preserved_false": 9,
+          "semantic_citation_errors": 0,
+          "limitations_preserved_false": 13
+        },
+        "insufficient": {
+          "planned_rows": 20,
+          "reviewed_completed_rows": 20,
+          "parsed_final_rows": 18,
+          "evaluator_classification_correct": 17,
+          "final_conflict_classifications": 1,
+          "supported_conflict_true": 0,
+          "supported_conflict_false": 1,
+          "supported_conflict_unassessed": 19,
+          "correctly_surfaced_conflicts": 0,
+          "insufficient_preserved_true": 17,
+          "insufficient_preserved_false": 3,
+          "semantic_citation_errors": 2,
+          "limitations_preserved_false": 10
+        }
+      }
+    },
+    "graph_decision": {
+      "planned_rows": 60,
+      "reviewed_completed_rows": 59,
+      "parsed_final_rows": 57,
+      "evaluator_classification_correct": 44,
+      "evaluator_classification_accuracy_over_planned_rows": "44/60",
+      "semantic_citation_errors": 2,
+      "fabricated_owner_findings": 0,
+      "incorrect_status_findings": 0,
+      "limitations_preserved_false": 4,
+      "gold_classifications": {
+        "conflict": {
+          "planned_rows": 20,
+          "reviewed_completed_rows": 19,
+          "parsed_final_rows": 18,
+          "evaluator_classification_correct": 10,
+          "final_conflict_classifications": 10,
+          "supported_conflict_true": 12,
+          "supported_conflict_false": 3,
+          "supported_conflict_unassessed": 4,
+          "correctly_surfaced_conflicts": 9,
+          "insufficient_preserved_true": 1,
+          "insufficient_preserved_false": 8,
+          "semantic_citation_errors": 1,
+          "limitations_preserved_false": 2
+        },
+        "compatible": {
+          "planned_rows": 20,
+          "reviewed_completed_rows": 20,
+          "parsed_final_rows": 20,
+          "evaluator_classification_correct": 16,
+          "final_conflict_classifications": 0,
+          "supported_conflict_true": 0,
+          "supported_conflict_false": 0,
+          "supported_conflict_unassessed": 20,
+          "correctly_surfaced_conflicts": 0,
+          "insufficient_preserved_true": 0,
+          "insufficient_preserved_false": 5,
+          "semantic_citation_errors": 0,
+          "limitations_preserved_false": 0
+        },
+        "insufficient": {
+          "planned_rows": 20,
+          "reviewed_completed_rows": 20,
+          "parsed_final_rows": 19,
+          "evaluator_classification_correct": 18,
+          "final_conflict_classifications": 1,
+          "supported_conflict_true": 0,
+          "supported_conflict_false": 1,
+          "supported_conflict_unassessed": 19,
+          "correctly_surfaced_conflicts": 0,
+          "insufficient_preserved_true": 18,
+          "insufficient_preserved_false": 2,
+          "semantic_citation_errors": 1,
+          "limitations_preserved_false": 2
+        }
+      }
+    }
+  },
+  "aggregate_notes": {
+    "field_definitions": {
+      "supported_conflict": "Manual semantic judgment that the source claims support an actual conflict, irrespective of the answer’s chosen classification.",
+      "correctly_surfaced_conflicts": "Gold label is conflict AND parsed final classification is conflict AND supported_conflict is true AND citation_error is false. This is the conflict success count; supported_conflict alone is not a success measure.",
+      "semantic_citation_errors": "Manual audit findings among rows with completed status; source-ID mismatch and non-exact quoted text count. Malformed/absent answers are accounted separately in run output quality.",
+      "evaluator_classification_correct": "The deterministic evaluation score’s classification_correct field; it is reported separately from manual semantic judgments.",
+      "planned_rows": "Fixed planned denominator from the frozen design: 60 per arm, 20 per gold label. Aborted and not-run rows count as incorrect/not surfaced for full-denominator rates.",
+      "reviewed_completed_rows": "Rows whose status is completed and which received manual annotations; this excludes aborted/not-run rows.",
+      "parsed_final_rows": "Completed rows with a parseable final answer; malformed finals remain in the completed denominator and score as incorrect."
+    },
+    "semantic_citation_errors_by_arm": {
+      "baseline": 2,
+      "passage_only_kev": 4,
+      "graph_decision": 2
+    },
+    "mechanical_citation_or_quote_failures_by_arm_including_noncompleted": {
+      "baseline": 2,
+      "passage_only_kev": 7,
+      "graph_decision": 5
+    },
+    "false_no_kev_inference_disclosures_after_completed_inference": {
+      "count": 33,
+      "rows": [
+        {
+          "case_id": "heldout-insufficient-06",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-compatible-04",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-conflict-02",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-conflict-09",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-conflict-19",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-compatible-13",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-compatible-18",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-conflict-20",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-conflict-17",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-conflict-03",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-conflict-13",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-compatible-08",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-conflict-15",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-compatible-14",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-compatible-16",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-insufficient-17",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-insufficient-04",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-conflict-10",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-compatible-05",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-compatible-12",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-conflict-07",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-compatible-11",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-insufficient-07",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-conflict-04",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-compatible-19",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-compatible-06",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-conflict-06",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-compatible-02",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-compatible-07",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-insufficient-01",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-insufficient-20",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-insufficient-15",
+          "arm": "passage_only_kev"
+        },
+        {
+          "case_id": "heldout-insufficient-03",
+          "arm": "passage_only_kev"
+        }
+      ]
+    },
+    "malformed_final_answer_rows": [
+      {
+        "case_id": "heldout-insufficient-02",
+        "arm": "passage_only_kev"
+      },
+      {
+        "case_id": "heldout-insufficient-09",
+        "arm": "passage_only_kev"
+      },
+      {
+        "case_id": "heldout-conflict-10",
+        "arm": "graph_decision"
+      },
+      {
+        "case_id": "heldout-insufficient-10",
+        "arm": "graph_decision"
+      }
+    ],
+    "fabricated_owner_findings": 0,
+    "incorrect_status_findings": 1,
+    "classification_accuracy_denominator": "Report both completed-row counts and accuracy over the fixed planned denominator of 60 per arm; do not drop malformed, aborted, or not-run rows from the headline denominator.",
+    "correctly_surfaced_conflicts_denominator": "Fixed planned denominator is 20 gold-conflict rows per arm; incomplete, malformed, misclassified, unsupported, or uncited conflict answers do not count as surfaced."
+  },
+  "final_verdict_and_evidence_notes": {
+    "verdict": "All 178 completed rows received manual semantic review. The run itself stopped short of a full 180-row completion: one passage-only arm aborted for input-token reserve and its graph arm was not run after the abort.",
+    "evidence_notes": [
+      "Evaluator classification correctness over the fixed 60-row denominator per arm: baseline 51/60, passage_only_kev 41/60, graph_decision 44/60. Completed-row and gold-stratum counts are shown separately above; malformed, aborted, and not-run rows remain failures in this denominator.",
+      "Correctly surfaced conflicts, using the strict definition above and the fixed denominator of 20 gold-conflict cases per arm: baseline 19/20, passage_only_kev 12/20, graph_decision 9/20.",
+      "Manual citation/quote errors among completed rows: baseline 2, passage_only_kev 4, graph_decision 2. Mechanical citation/quote failures are 2/7/5 when malformed answers and the aborted response are included.",
+      "33 passage-only completed answers falsely state that no Kev inference occurred despite inference_completed=1; this was the most repeated limitation-disclosure defect.",
+      "No fabricated owners were found. One incorrect source-status field was recorded. Four completed rows have malformed final JSON and no parseable answer to review.",
+      "A source-internal mismatch in heldout-conflict-01 (claim text versus Actor field) was noted in the row annotations without changing frozen labels."
+    ]
+  }
+}

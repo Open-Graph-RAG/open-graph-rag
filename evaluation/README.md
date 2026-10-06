@@ -51,3 +51,20 @@ PYTHONPATH=evaluation:mcp TIKTOKEN_CACHE_DIR=/tmp/decision-tiktoken-cache \
 In both Kev arms, the evaluation-only tool response omits the duplicated `context.state_text` field while preserving every `context.items` excerpt and all other fields. The complete, unprojected tool result is stored alongside the transcript for audit. This reduces repeated prompt tokens without shortening or removing evidence; the production MCP response is unchanged.
 
 Results retain model-visible transcripts, raw tool results, per-call usage and HTTP metadata, tool attempts and outcomes, retrieval expansion, latency, mechanical citation/quote/qualifier checks, and fields for human review. Case IDs and hidden gold annotations are used only in result records and scoring; they are excluded from model messages and fixture responses.
+
+## Recorded verdict and reproduction
+
+The [recorded run](report.md) failed direct quality acceptance and stopped the
+workflow comparison at the conservative input reservation. Keep every slot in
+the denominator and do not treat the partial results as a pass. The original
+agent remains unchanged.
+
+```bash
+.venv-kev/bin/python evaluation/direct_kev_ablation.py --output evaluation/direct-results.json
+python3 evaluation/summarize_results.py --output evaluation/summary.json
+```
+
+The direct command requires the same pinned local CUDA model environment as
+the paid run, but calls no hosted provider. The summarizer requires only the
+Python standard library. It reports fixed denominators and includes the manual
+audit separately; it does not replace semantic evidence review.
