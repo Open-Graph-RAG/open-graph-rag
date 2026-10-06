@@ -381,6 +381,25 @@ The result should contain the demo evidence. A successful HTTP response with
 empty data does not prove indexing is complete. The internal MCP test does not
 verify tool selection in LibreChat: also complete the UI test.
 
+### Index this repository
+
+To make the repository searchable through `knowledge_search`, run:
+
+```bash
+python3 scripts/index_codebase.py --dry-run  # review the selected files
+python3 scripts/index_codebase.py
+docker compose exec mcp python smoke.py "How does knowledge_search connect LibreChat to LightRAG?"
+```
+
+The indexer reads `.env` for `LIGHTRAG_API_KEY` and defaults to
+`http://127.0.0.1:9621`. It indexes UTF-8 Python, JavaScript/TypeScript, JSON,
+Markdown, SQL, shell, TOML, and YAML files up to 256 KB. It skips sample data,
+build output, virtual environments, dependency lockfiles, `.env` files, and
+binary or undecodable files. Each LightRAG source ID includes the file's SHA-256,
+so an unchanged rerun skips previously indexed files; edited files are added as
+a new version. The script waits for each submitted document to reach `PROCESSED`
+and prints the service's document status counts as ingestion evidence.
+
 If something does not work:
 
 | Symptom | Check |
