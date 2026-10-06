@@ -131,12 +131,32 @@ class KevAdapterTests(unittest.TestCase):
             from kev_adapter import EXPECTED_BASE, EXPECTED_KEV, EXPECTED_SOURCE
             manifest.write_text(json.dumps({"schema_version": 1, "kev_source_commit": EXPECTED_SOURCE,
                 "kev_model_revision": EXPECTED_KEV, "base_revision": EXPECTED_BASE, "files": files}))
-            with patch("kev_adapter.subprocess.check_output", side_effect=[EXPECTED_SOURCE + "\n", ""]):
+            with patch("kev_adapter.expected_files", return_value=sorted(files, key=lambda entry: entry["path"])), \
+                    patch("kev_adapter.subprocess.check_output", side_effect=[EXPECTED_SOURCE + "\n", ""]):
                 verify_artifacts(root, source, manifest)
             (root / "kev" / "weights").write_bytes(b"tampered")
             with self.assertRaises(KevUnavailable):
-                with patch("kev_adapter.subprocess.check_output", side_effect=[EXPECTED_SOURCE + "\n", ""]):
+                with patch("kev_adapter.expected_files", return_value=sorted(files, key=lambda entry: entry["path"])), \
+                        patch("kev_adapter.subprocess.check_output", side_effect=[EXPECTED_SOURCE + "\n", ""]):
                     verify_artifacts(root, source, manifest)
+
+    def test_manifest_cannot_omit_or_replace_packaged_checksums(self):
+        from kev_adapter import EXPECTED_BASE, EXPECTED_KEV, EXPECTED_SOURCE
+        from prepare_kev_artifacts import expected_files
+        pinned = expected_files(json.loads(
+            Path(__file__).resolve().parents[1].joinpath("kev-artifact-checksums.json").read_text()
+        ))
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = root / "manifest.json"
+            for entries in (pinned[:-1], [{**entry, "sha256": "0" * 64} for entry in pinned]):
+                manifest.write_text(json.dumps({"schema_version": 1,
+                    "kev_source_commit": EXPECTED_SOURCE, "kev_model_revision": EXPECTED_KEV,
+                    "base_revision": EXPECTED_BASE, "files": entries}))
+                with patch("kev_adapter._digest") as digest:
+                    with self.assertRaises(KevUnavailable):
+                        verify_artifacts(root, root / "source", manifest)
+                    digest.assert_not_called()
 
     def test_pinned_kev_serializer_and_helpers_keep_canonical_yes_no_and_confidence(self):
         source = os.environ.get("KEV_SOURCE")

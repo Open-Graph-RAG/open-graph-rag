@@ -13,6 +13,7 @@ import time
 from typing import Any
 
 from decision_contract import DecisionAnswer, DecisionQuestion, KevQuestion, ModelMetadata
+from prepare_kev_artifacts import expected_files
 
 EXPECTED_SOURCE = "5e42a7a03f28134853dd3ff77461457e921e5ec1"
 EXPECTED_KEV = "9a45d25eb2ab761841196625383fa1dff0e56c1e"
@@ -41,6 +42,11 @@ def verify_artifacts(root: Path, source: Path, manifest_path: Path) -> None:
             raise ValueError
         entries = manifest["files"]
         if not isinstance(entries, list) or not entries:
+            raise ValueError
+        pinned_entries = expected_files(json.loads(
+            Path(__file__).with_name("kev-artifact-checksums.json").read_text()
+        ))
+        if sorted(entries, key=lambda entry: entry["path"]) != pinned_entries:
             raise ValueError
         for entry in entries:
             relative = Path(entry["path"])
