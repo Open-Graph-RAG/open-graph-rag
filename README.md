@@ -395,10 +395,14 @@ The indexer reads `.env` for `LIGHTRAG_API_KEY` and defaults to
 `http://127.0.0.1:9621`. It indexes UTF-8 Python, JavaScript/TypeScript, JSON,
 Markdown, SQL, shell, TOML, and YAML files up to 256 KB. It skips sample data,
 build output, virtual environments, dependency lockfiles, `.env` files, and
-binary or undecodable files. Each LightRAG source ID includes the file's SHA-256,
-so an unchanged rerun skips previously indexed files; edited files are added as
-a new version. The script waits for each submitted document to reach `PROCESSED`
-and prints the service's document status counts as ingestion evidence.
+binary or undecodable files. Before indexing, it redacts credential-like
+assignments, private-key blocks, common provider tokens, and URL user/password
+components. If a prior run indexed an unredacted version of a changed file, the
+script removes the exact matching source version before submitting sanitized
+text. Each source ID includes the sanitized content's SHA-256, so unchanged
+reruns skip previously indexed files; edited files are added as a new version.
+The script waits for each submitted document to reach `PROCESSED` and prints
+the service's document status counts as ingestion evidence.
 
 If something does not work:
 
