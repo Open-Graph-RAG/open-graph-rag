@@ -1,0 +1,6 @@
+[Unit]
+Description=Report failed Open Graph RAG operation %i
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/logger --priority daemon.err --tag ogr-backup "systemd unit %i failed; inspect journalctl -u %i and backup status"

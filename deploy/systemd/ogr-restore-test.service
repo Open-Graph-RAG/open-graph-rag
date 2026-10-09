@@ -1,0 +1,21 @@
+[Unit]
+Description=Weekly isolated Open Graph RAG restore drill
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+OnFailure=ogr-backup-alert@%n.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/opt/open-graph-rag
+Environment=BACKUP_CONFIG=/etc/open-graph-rag/backup.env
+ExecStart=/opt/open-graph-rag/scripts/backup/restore.sh --snapshot latest --target isolated --cleanup
+UMask=0077
+Nice=10
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/open-graph-rag/.backup-state /var/lib/docker
+TimeoutStartSec=6h

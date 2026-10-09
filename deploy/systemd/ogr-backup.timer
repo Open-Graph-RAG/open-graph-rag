@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Open Graph RAG backup schedule
+
+[Timer]
+OnCalendar=*-*-* 02:15:00
+RandomizedDelaySec=15m
+Persistent=true
+Unit=ogr-backup.service
+
+[Install]
+WantedBy=timers.target

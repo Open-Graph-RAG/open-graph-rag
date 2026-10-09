@@ -1,0 +1,14 @@
+# The backup engine applies this tag only after both repositories pass
+# verification. Snapshots tagged `before-upgrade` are protected from pruning.
+verified_tag: ogr-backup
+protected_tags:
+  - before-upgrade
+
+keep:
+  daily: 7
+  weekly: 4
+  monthly: 6
+
+# Pruning must preserve at least one verified snapshot. Offsite copies are
+# created for every successful backup and follow the same retention policy.
+minimum_verified_snapshots: 1
