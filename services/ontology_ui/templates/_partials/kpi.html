@@ -1,0 +1,9 @@
+<article class="kpi-card">
+  <div class="kpi-card__value">{{ value }}</div>
+  <div class="kpi-card__label">{{ label }}</div>
+  {% if href %}
+    <div class="kpi-card__action">
+      <a href="{{ href }}" class="link-plain">{{ link_text or "View" }} →</a>
+    </div>
+  {% endif %}
+</article>

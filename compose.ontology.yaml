@@ -85,6 +85,35 @@ services:
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
 
+  ontology-ui:
+    build:
+      context: .
+      dockerfile: services/ontology_ui/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${ONTOLOGY_UI_PORT:-8020}:8010"
+    environment:
+      ONTOLOGY_API_URL: http://ontology:8010
+      ONTOLOGY_UI_SESSION_SECRET: ${ONTOLOGY_UI_SESSION_SECRET:?Configure .env}
+      ONTOLOGY_WORKSPACE: ${ONTOLOGY_WORKSPACE:-company_governed}
+      ONTOLOGY_UI_HTTPS_ONLY: ${ONTOLOGY_UI_HTTPS_ONLY:-}
+    # `knowledge_db` is `internal: true`, which prevents Docker Desktop
+    # from publishing the host port. Attach the UI to a non-internal
+    # network as well so the host port is actually exposed.
+    networks: [knowledge_db, ontology_backend]
+    depends_on:
+      ontology:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/health', timeout=5)"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+
 networks:
   # Egress is needed for LightRAG's embedding and language-model providers.
   ontology_backend:

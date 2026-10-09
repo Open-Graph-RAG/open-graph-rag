@@ -1,0 +1,26 @@
+{% if relations %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Relation</th>
+          <th>Source</th>
+          <th>Target</th>
+          <th>Directed</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for relation in relations %}
+          <tr>
+            <td class="td-mono">{{ relation.name or relation.relation or "—" }}</td>
+            <td class="td-mono">{{ relation.source or "—" }}</td>
+            <td class="td-mono">{{ relation.target or "—" }}</td>
+            <td>{% if relation.directed %}Yes{% else %}No{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="text-secondary text-sm">No relations defined.</p>
+{% endif %}

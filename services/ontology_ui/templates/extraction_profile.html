@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Extraction profile — {{ ontology_id }} v{{ version }} — Ontology Console{% endblock %}
+
+{% set current_section = "ontologies" %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <h1>Extraction profile</h1>
+      <p class="page-header__subtitle">
+        Ontology <span class="mono">{{ ontology_id }}</span> · version <span class="mono">{{ version }}</span>
+      </p>
+    </div>
+    <a href="/ontologies/{{ ontology_id }}/versions/{{ version }}" class="btn btn--ghost btn--sm">Back</a>
+  </div>
+
+  <div class="card card--padded">
+    <div class="form-actions" style="margin-bottom: var(--space-4)">
+      <button type="button" class="btn btn--sm" id="copy-profile" aria-label="Copy profile to clipboard">Copy</button>
+    </div>
+    <pre class="code-block" id="profile-text"><code>{{ profile | tojson(indent=2) }}</code></pre>
+  </div>
+
+  <script>
+    (function () {
+      const button = document.getElementById('copy-profile');
+      const pre = document.getElementById('profile-text');
+      if (!button || !pre) return;
+      button.addEventListener('click', async function () {
+        try {
+          await navigator.clipboard.writeText(pre.innerText);
+          const original = button.textContent;
+          button.textContent = 'Copied';
+          setTimeout(function () { button.textContent = original; }, 1500);
+        } catch (e) {
+          button.textContent = 'Failed';
+        }
+      });
+    })();
+  </script>
+{% endblock %}

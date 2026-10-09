@@ -1,0 +1,7 @@
+{% set status_normalized = (status or "pending").lower() %}
+{% if status_normalized not in ["published", "draft", "accepted", "quarantined", "observed", "failed", "pending", "delivered"] %}
+  {% set status_normalized = "neutral" %}
+{% endif %}
+<span class="status-pill status-pill--{{ status_normalized }}">
+  {{ status or "unknown" }}
+</span>

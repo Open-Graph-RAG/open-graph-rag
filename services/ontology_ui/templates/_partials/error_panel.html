@@ -1,0 +1,23 @@
+{% if title or message %}
+  <section class="panel panel--error" role="alert">
+    <header class="panel__header">
+      <h2 class="panel__title">{{ title or "Something went wrong" }}</h2>
+    </header>
+    <div class="panel__body">
+      {% if message %}
+        <p>{{ message }}</p>
+      {% endif %}
+      {% if detail %}
+        <details class="panel__details">
+          <summary>Details</summary>
+          <pre class="code-block"><code>{{ detail if detail is string else (detail | tojson(indent=2)) }}</code></pre>
+        </details>
+      {% endif %}
+      {% if back %}
+        <p class="panel__back">
+          <a href="{{ back }}" class="link-plain">← Back</a>
+        </p>
+      {% endif %}
+    </div>
+  </section>
+{% endif %}

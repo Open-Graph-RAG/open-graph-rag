@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Version {{ version }} — {{ ontology_id }} — Ontology Console{% endblock %}
+
+{% set current_section = "ontologies" %}
+{% set active_tab = request.query_params.tab | default("entities") %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <h1>Version {{ version }}</h1>
+      <p class="page-header__subtitle">
+        Ontology <span class="mono">{{ ontology_id }}</span> ·
+        Status {% with status=definition.status %}{% include "_partials/status_pill.html" %}{% endwith %}
+      </p>
+    </div>
+    <div class="form-actions">
+      <a href="/ontologies/{{ ontology_id }}/versions/{{ version }}/extraction-profile" class="btn btn--sm">Extraction profile</a>
+      <a href="/ontologies/{{ ontology_id }}/versions" class="btn btn--ghost btn--sm">Back</a>
+    </div>
+  </div>
+
+  {% set base_path = request.url.path %}
+  {% set extra_q = [] %}
+  {% for k, v in request.query_params.multi_items() %}
+    {% if k != 'tab' %}{% set _ = extra_q.append(k + '=' + v) %}{% endif %}
+  {% endfor %}
+  {% set extra_q_str = extra_q | join('&') %}
+
+  <nav class="tabs" aria-label="Version panels">
+    <a href="{{ base_path }}?tab=entities{% if extra_q_str %}&{{ extra_q_str }}{% endif %}" class="tab{% if active_tab == 'entities' %} is-active{% endif %}" {% if active_tab == 'entities' %}aria-current="true"{% endif %}>Entities</a>
+    <a href="{{ base_path }}?tab=relations{% if extra_q_str %}&{{ extra_q_str }}{% endif %}" class="tab{% if active_tab == 'relations' %} is-active{% endif %}" {% if active_tab == 'relations' %}aria-current="true"{% endif %}>Relations</a>
+    <a href="{{ base_path }}?tab=json{% if extra_q_str %}&{{ extra_q_str }}{% endif %}" class="tab{% if active_tab == 'json' %} is-active{% endif %}" {% if active_tab == 'json' %}aria-current="true"{% endif %}>Raw JSON</a>
+  </nav>
+
+  {% if active_tab == "entities" %}
+    <section class="tab-panel is-active" aria-labelledby="tab-entities">
+      {% if definition.entity_rows %}
+        <div class="definition-grid">
+          {% for entity in definition.entity_rows %}
+            <article class="definition-card">
+              <div class="definition-card__header">
+                <h3 class="definition-card__title">
+                  <span class="mono">{{ entity.name or "Entity" }}</span>
+                </h3>
+                {% if entity.description %}
+                  <p class="definition-card__subtitle">{{ entity.description }}</p>
+                {% endif %}
+              </div>
+              <div class="definition-card__body">
+                {% with properties=entity.properties %}{% include "_partials/property_table.html" %}{% endwith %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="card card--padded empty-state">
+          <div class="empty-state__title">No entities defined</div>
+        </div>
+      {% endif %}
+    </section>
+  {% elif active_tab == "relations" %}
+    <section class="tab-panel is-active" aria-labelledby="tab-relations">
+      {% if definition.relation_rows %}
+        {% with relations=definition.relation_rows %}{% include "_partials/relation_table.html" %}{% endwith %}
+      {% else %}
+        <div class="card card--padded empty-state">
+          <div class="empty-state__title">No relations defined</div>
+        </div>
+      {% endif %}
+    </section>
+  {% elif active_tab == "json" %}
+    <section class="tab-panel is-active" aria-labelledby="tab-json">
+      {% with data=definition, container_id='version-json' %}{% include "_partials/json_view.html" %}{% endwith %}
+    </section>
+  {% endif %}
+{% endblock %}

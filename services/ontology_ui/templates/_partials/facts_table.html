@@ -1,0 +1,35 @@
+{% if facts %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Kind</th>
+          <th>Ontology</th>
+          <th>Subject</th>
+          <th>Predicate</th>
+          <th>Object</th>
+          <th>Recorded at</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fact in facts %}
+          <tr>
+            <td class="td-mono">{{ fact.id or "—" }}</td>
+            <td>{{ fact.kind or "—" }}</td>
+            <td class="td-mono">{{ fact.ontology_id or "—" }}</td>
+            <td class="td-mono">{{ fact.subject or "—" }}</td>
+            <td class="td-mono">{{ fact.predicate or "—" }}</td>
+            <td class="td-mono">{{ fact.object or "—" }}</td>
+            <td class="td-mono td-shrink">{{ fact.recorded_at or "—" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="empty-state">
+    <div class="empty-state__title">No facts match your filters.</div>
+    <p>Try adjusting or clearing the filters above.</p>
+  </div>
+{% endif %}
