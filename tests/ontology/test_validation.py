@@ -96,6 +96,24 @@ class OntologyDefinitionTests(unittest.TestCase):
             load_definition(candidate)
         self.assertGreaterEqual(sum(error["code"] == "property_schema_invalid" for error in raised.exception.errors), 2)
 
+    def test_malformed_property_types_and_bounds_return_validation_errors(self):
+        candidate = definition()
+        candidate["entities"]["Person"]["properties"]["age"] = {
+            "type": ["string"], "minimum": [1], "maximum": [2], "enum": ["old"]
+        }
+        with self.assertRaises(DefinitionValidationError) as raised:
+            load_definition(candidate)
+        self.assertIn("schema_invalid", {error["code"] for error in raised.exception.errors})
+
+    def test_rejects_non_json_yaml_values(self):
+        for raw in (
+            "id: test-core\nversion: 1.2.3\nstatus: draft\nentities: {}\nrelations: {}\nextra: .nan\n",
+            "id: test-core\nversion: 1.2.3\nstatus: draft\nentities:\n  Person:\n    description: A person\n    properties:\n      birth_date:\n        type: string\n        enum: [2026-10-09]\nrelations: {}\n",
+        ):
+            with self.subTest(raw=raw), self.assertRaises(DefinitionValidationError) as raised:
+                load_definition(raw)
+            self.assertEqual(raised.exception.errors[0]["code"], "invalid_json")
+
     def test_hash_ignores_status_but_includes_content(self):
         draft = definition()
         published = {**draft, "status": "published"}
@@ -125,7 +143,7 @@ class FactValidationTests(unittest.TestCase):
         fact = entity_fact("person-2", properties={"age": "old", "status": "unknown", "extra": True})
         errors = validate_fact(self.definition, fact, self.entities, [])
         self.assertIn("invalid_property", self.codes(errors))
-        self.assertTrue(any(error["field"] == "properties.name" for error in errors))
+        self.assertTrue(any(error["code"] == "missing_required_property" and error["field"] == "properties.name" for error in errors))
 
     def test_nested_required_property_markers_compile_to_json_schema(self):
         self.definition["entities"]["Person"]["properties"]["profile"] = {
@@ -167,6 +185,11 @@ class FactValidationTests(unittest.TestCase):
         errors = validate_fact(self.definition, {"kind": [], "properties": [], "provenance": [None]}, self.entities, [])
         self.assertTrue(errors)
         self.assertTrue(all(set(error) == {"code", "field", "message"} for error in errors))
+
+    def test_non_finite_fact_property_returns_stable_error(self):
+        fact = entity_fact("person-2", properties={"name": "Ada", "score": float("nan")})
+        errors = validate_fact(self.definition, fact, self.entities, [])
+        self.assertEqual(errors[0]["code"], "invalid_json")
 
 
 if __name__ == "__main__":

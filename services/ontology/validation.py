@@ -31,6 +31,14 @@ def _path(parts: Any) -> str:
     return ".".join(str(part) for part in parts) or "$"
 
 
+def _json_serialization_error(value: Any) -> str | None:
+    try:
+        json.dumps(value, allow_nan=False)
+    except (TypeError, ValueError) as exc:
+        return str(exc)
+    return None
+
+
 def _relation_types(value: Any) -> list[str]:
     return [value] if isinstance(value, str) else value
 
@@ -81,17 +89,27 @@ def _property_authoring_errors(properties: dict[str, Any], prefix: str) -> list[
         if not isinstance(definition, dict):
             continue  # The ontology JSON Schema reports the structural error.
         value_type = definition.get("type")
-        permitted = typed_keywords.get(value_type, set())
+        permitted = typed_keywords.get(value_type, set()) if isinstance(value_type, str) else set()
         for keyword in set(definition) & {"minLength", "maxLength", "minimum", "maximum", "properties", "additionalProperties", "items"}:
             if keyword not in permitted:
                 errors.append({"code": "property_schema_invalid", "field": f"{field}.{keyword}", "message": f"{keyword} is not valid for property type {value_type!r}."})
         for lower, upper in (("minLength", "maxLength"), ("minimum", "maximum")):
-            if lower in definition and upper in definition and definition[lower] > definition[upper]:
+            lower_value = definition.get(lower)
+            upper_value = definition.get(upper)
+            comparable = (
+                isinstance(lower_value, int) and not isinstance(lower_value, bool)
+                and isinstance(upper_value, int) and not isinstance(upper_value, bool)
+                if lower.endswith("Length") else
+                isinstance(lower_value, (int, float)) and not isinstance(lower_value, bool)
+                and isinstance(upper_value, (int, float)) and not isinstance(upper_value, bool)
+            )
+            if lower in definition and upper in definition and comparable and lower_value > upper_value:
                 errors.append({"code": "property_schema_invalid", "field": field, "message": f"{lower} must not exceed {upper}."})
         if "enum" in definition:
-            checker = jsonschema.Draft202012Validator({"type": value_type})
-            if any(not checker.is_valid(value) for value in definition["enum"]):
-                errors.append({"code": "property_schema_invalid", "field": f"{field}.enum", "message": f"Enum values must match property type {value_type!r}."})
+            if isinstance(value_type, str) and value_type in typed_keywords:
+                checker = jsonschema.Draft202012Validator({"type": value_type})
+                if any(not checker.is_valid(value) for value in definition["enum"]):
+                    errors.append({"code": "property_schema_invalid", "field": f"{field}.enum", "message": f"Enum values must match property type {value_type!r}."})
         nested = definition.get("properties")
         if isinstance(nested, dict):
             errors.extend(_property_authoring_errors(nested, f"{field}.properties"))
@@ -120,6 +138,9 @@ def load_definition(raw: dict | str) -> dict:
 
     if not isinstance(definition, dict):
         raise DefinitionValidationError([{"code": "invalid_definition", "field": "$", "message": "Definition must contain a mapping at its root."}])
+
+    if serialization_error := _json_serialization_error(definition):
+        raise DefinitionValidationError([{"code": "invalid_json", "field": "$", "message": f"Definition must contain only JSON-compatible values: {serialization_error}"}])
 
     validator = jsonschema.Draft202012Validator(_ONTOLOGY_SCHEMA)
     for error in sorted(validator.iter_errors(definition), key=lambda item: (_path(item.absolute_path), item.validator or "")):
@@ -205,6 +226,8 @@ def validate_fact(
         return [_error("invalid_definition", "$", "Ontology definition must be a mapping.")]
     if not isinstance(fact, dict):
         return [_error("invalid_fact", "$", "Fact must be a mapping.")]
+    if serialization_error := _json_serialization_error(fact):
+        return [_error("invalid_json", "$", f"Fact must contain only JSON-compatible values: {serialization_error}")]
     if not isinstance(entities, dict):
         entities = {}
     if not isinstance(facts, list):
@@ -272,7 +295,8 @@ def validate_fact(
                     unexpected = next((name for name in error.instance if name not in error.schema.get("properties", {})), None)
                     if unexpected is not None:
                         field_parts.append(str(unexpected))
-                errors.append(_error("invalid_property", _path(field_parts), error.message))
+                code = "missing_required_property" if error.validator == "required" else "invalid_property"
+                errors.append(_error(code, _path(field_parts), error.message))
 
     elif kind == "relation":
         predicate = fact.get("predicate")
