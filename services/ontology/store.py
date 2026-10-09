@@ -252,22 +252,25 @@ class Store:
             cur.execute("SELECT id,fact_id,attempts,available_at,leased_until,delivered_at,last_error FROM ontology.outbox WHERE workspace=%s ORDER BY id", (workspace,))
             return [dict(r) for r in cur.fetchall()]
 
-    def lease_outbox(self, limit: int = 10) -> list[dict[str, Any]]:
+    def lease_outbox(self, limit: int = 10, workspace: str | None = None) -> list[dict[str, Any]]:
         if limit < 1 or limit > 1000:
             raise ValueError("limit must be between 1 and 1000")
         token = str(uuid.uuid4())
         with _connection(self.database_url) as conn, conn.cursor() as cur:
-            cur.execute("SELECT workspace FROM ontology.outbox WHERE delivered_at IS NULL AND available_at<=now() AND (leased_until IS NULL OR leased_until<now()) ORDER BY id LIMIT 1")
+            cur.execute("""SELECT workspace FROM ontology.outbox WHERE delivered_at IS NULL
+                AND available_at<=now() AND (leased_until IS NULL OR leased_until<now())
+                AND (%s::text IS NULL OR workspace=%s) ORDER BY id LIMIT 1""", (workspace, workspace))
             candidate = cur.fetchone()
             if not candidate:
                 return []
             candidate_workspace = candidate["workspace"]
             self._lock(cur, candidate_workspace)
             cur.execute("""WITH picked AS (SELECT id FROM ontology.outbox WHERE delivered_at IS NULL
-                AND workspace=%s AND available_at<=now() AND (leased_until IS NULL OR leased_until<now())
+                AND (%s::text IS NULL OR workspace=%s) AND workspace=%s
+                AND available_at<=now() AND (leased_until IS NULL OR leased_until<now())
                 ORDER BY id FOR UPDATE SKIP LOCKED LIMIT %s)
                 UPDATE ontology.outbox o SET leased_until=now()+interval '60 seconds',lease_token=%s,attempts=attempts+1
-                FROM picked WHERE o.id=picked.id RETURNING o.id,o.workspace,o.payload""", (candidate_workspace, limit, token))
+                FROM picked WHERE o.id=picked.id RETURNING o.id,o.workspace,o.payload""", (workspace, workspace, candidate_workspace, limit, token))
             return [{"id": r["id"], "workspace": r["workspace"], "fact": dict(r["payload"]), "lease_token": token} for r in cur.fetchall()]
 
     @contextmanager
@@ -413,8 +416,9 @@ class MemoryStore:
                  "delivered_at": True if x.get("delivered") else None, "last_error": x.get("error")}
                 for x in self._outbox if x.get("workspace") == workspace]
 
-    def lease_outbox(self, limit=10):
-        selected = [x for x in self._outbox if not x.get("delivered") and not x.get("leased")][:limit]
+    def lease_outbox(self, limit=10, workspace=None):
+        selected = [x for x in self._outbox if not x.get("delivered") and not x.get("leased")
+                    and (workspace is None or x.get("workspace") == workspace)][:limit]
         leased = []
         for x in selected:
             x["leased"] = True; x["attempts"] += 1; x["lease_token"] = str(uuid.uuid4())

@@ -67,6 +67,16 @@ class MemoryStoreTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.store.write_fact("team-a", self.fact(id="person-4", ontology_version="1.1.0"))
 
+    def test_outbox_lease_is_workspace_scoped(self):
+        self.store.write_fact("team-a", self.fact())
+        self.store.save_draft("team-b", self.definition, "bob")
+        self.store.publish("team-b", "test-ontology", "1.0.0", "bob")
+        self.store.write_fact("team-b", self.fact())
+        alpha = self.store.lease_outbox(workspace="team-a")
+        self.assertEqual(["team-a"], [item["workspace"] for item in alpha])
+        beta = self.store.lease_outbox(workspace="team-b")
+        self.assertEqual(["team-b"], [item["workspace"] for item in beta])
+
     def test_content_hash_ignores_workflow_status(self):
         self.assertEqual(content_hash(self.definition), content_hash(dict(self.definition, status="published")))
 

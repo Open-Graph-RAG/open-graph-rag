@@ -48,9 +48,9 @@ def create_app(store, tokens: dict, workspace: str) -> FastAPI:
         if request.method in {"POST", "PUT", "PATCH"}:
             body = bytearray()
             async for chunk in request.stream():
-                body.extend(chunk)
-                if len(body) > 1_048_576:
+                if len(body) + len(chunk) > 1_048_576:
                     return JSONResponse(status_code=413, content={"detail": "Request exceeds 1 MiB"})
+                body.extend(chunk)
             request._body = bytes(body)
         return await call_next(request)
 

@@ -521,3 +521,16 @@ imports and isolated tests. Starting those services does not switch traffic.
 This bundle contains configuration and the bridge; upstream projects retain
 their own licenses. Exposing it to the Internet requires a deployment with
 HTTPS, domains, and access controls configured for your environment.
+# Governed ontology management
+
+The optional [ontology overlay](compose.ontology.yaml) adds a PostgreSQL-backed
+ontology registry, deterministic fact validation, quarantine, transactional
+projection outbox, migrations with dry-run and rollback, and workspace-scoped
+reader/admin roles. It uses a dedicated `company_governed` LightRAG workspace.
+Its retrieval gateway blocks raw ingestion and graph mutation routes; submit
+extracted candidates through the ontology API instead. The base stack retains
+its existing ingestion workflows.
+
+See the [ontology runbook](docs/ontology/runbook.md),
+[specification](docs/ontology/specification.md), and
+[migration guide](docs/ontology/migration-guide.md) for setup and API examples.

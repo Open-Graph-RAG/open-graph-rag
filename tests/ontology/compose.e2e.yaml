@@ -1,0 +1,88 @@
+# Disposable, isolated PostgreSQL + pinned LightRAG stack. Provider traffic is
+# served locally by mock_provider.py; this fixture does not invoke paid APIs.
+services:
+  postgres:
+    environment:
+      POSTGRES_DB: lightrag
+      POSTGRES_USER: lightrag
+      POSTGRES_PASSWORD: ontology-e2e-postgres-password
+  mock-provider:
+    image: python:3.12.10-slim
+    command: [python, /srv/mock_provider.py]
+    volumes:
+      - ./tests/ontology/mock_provider.py:/srv/mock_provider.py:ro
+    networks: [knowledge_db, ontology_backend]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+  lightrag:
+    ports: !reset []
+    depends_on: !override
+      postgres:
+        condition: service_healthy
+      mock-provider:
+        condition: service_healthy
+    environment:
+      WORKSPACE: ontology-e2e
+      LIGHTRAG_API_KEY: ontology-e2e-lightrag-key
+      LLM_BINDING_HOST: http://mock-provider:8000/v1
+      LLM_BINDING_API_KEY: no-paid-api
+      LLM_MODEL: ontology-e2e
+      EMBEDDING_BINDING_HOST: http://mock-provider:8000/v1
+      EMBEDDING_BINDING_API_KEY: no-paid-api
+      EMBEDDING_MODEL: ontology-e2e
+      EMBEDDING_DIM: "1024"
+  ontology:
+    ports: !override ["127.0.0.1:18010:8010"]
+    environment:
+      ONTOLOGY_DATABASE_URL: postgresql://lightrag:ontology-e2e-postgres-password@postgres:5432/lightrag
+      ONTOLOGY_TOKENS: '{"ontology-e2e-admin-token-00000000000000000000000000000000":{"role":"ontology_admin","workspaces":["ontology-e2e"]}}'
+      LIGHTRAG_WORKSPACE: ontology-e2e
+      LIGHTRAG_URL: http://lightrag:9621
+      LIGHTRAG_API_KEY: ontology-e2e-lightrag-key
+  ontology-projector:
+    environment:
+      ONTOLOGY_DATABASE_URL: postgresql://lightrag:ontology-e2e-postgres-password@postgres:5432/lightrag
+      LIGHTRAG_WORKSPACE: ontology-e2e
+      LIGHTRAG_URL: http://lightrag:9621
+      LIGHTRAG_API_KEY: ontology-e2e-lightrag-key
+  ontology-gateway:
+    ports: !override ["127.0.0.1:29621:9621"]
+    environment:
+      LIGHTRAG_WORKSPACE: ontology-e2e
+      LIGHTRAG_URL: http://lightrag:9621
+      LIGHTRAG_API_KEY: ontology-e2e-lightrag-key
+  ontology-e2e-test:
+    build:
+      context: .
+      dockerfile: services/ontology/Dockerfile
+    command: [python, /srv/e2e.py]
+    volumes:
+      - ./tests/ontology/e2e.py:/srv/e2e.py:ro
+    environment:
+      PYTHONPATH: /app
+      ONTOLOGY_URL: http://ontology:8010
+      GATEWAY_URL: http://ontology-gateway:9621
+      ONTOLOGY_ADMIN_TOKEN: ontology-e2e-admin-token-00000000000000000000000000000000
+      LIGHTRAG_URL: http://lightrag:9621
+      LIGHTRAG_API_KEY: ontology-e2e-lightrag-key
+      RUN_ADAPTER_RETRY: "1"
+    networks: [ontology_backend]
+    depends_on:
+      ontology:
+        condition: service_healthy
+      ontology-gateway:
+        condition: service_started
+
+networks:
+  knowledge_db:
+    ipam:
+      config: [{subnet: 10.254.100.0/24}]
+  knowledge_api:
+    ipam:
+      config: [{subnet: 10.254.101.0/24}]
+  ontology_backend:
+    ipam:
+      config: [{subnet: 10.254.102.0/24}]

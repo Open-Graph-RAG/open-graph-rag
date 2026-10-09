@@ -1,0 +1,90 @@
+# Governed P1 mode: raw ingestion and graph mutations are deliberately unavailable.
+# Start with: docker compose -f compose.yaml -f compose.ontology.yaml up -d --build
+services:
+  ollama:
+    networks: [knowledge_api, ontology_backend]
+
+  lightrag:
+    ports: !reset []
+    networks: !override [knowledge_db, ontology_backend]
+    environment:
+      WORKSPACE: ${ONTOLOGY_WORKSPACE:-company_governed}
+
+  mcp:
+    environment:
+      LIGHTRAG_URL: http://ontology-gateway:9621
+    depends_on:
+      ontology-gateway:
+        condition: service_healthy
+
+  ontology:
+    build:
+      context: .
+      dockerfile: services/ontology/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${ONTOLOGY_PORT:-8010}:8010"
+    environment: &ontology_environment
+      ONTOLOGY_DATABASE_URL: postgresql://lightrag:${POSTGRES_PASSWORD:?Configure .env}@postgres:5432/lightrag
+      ONTOLOGY_TOKENS: '${ONTOLOGY_TOKENS:?Set workspace-scoped ontology tokens in .env}'
+      LIGHTRAG_WORKSPACE: ${ONTOLOGY_WORKSPACE:-company_governed}
+      LIGHTRAG_URL: http://lightrag:9621
+      LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY:?Configure .env}
+    networks: [knowledge_db, ontology_backend]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/health', timeout=5)"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+
+  ontology-projector:
+    build:
+      context: .
+      dockerfile: services/ontology/Dockerfile
+    restart: unless-stopped
+    command: [python, -m, services.ontology.projection]
+    environment: *ontology_environment
+    networks: [knowledge_db, ontology_backend]
+    depends_on:
+      ontology:
+        condition: service_healthy
+      lightrag:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+
+  ontology-gateway:
+    build:
+      context: .
+      dockerfile: services/ontology/Dockerfile
+    restart: unless-stopped
+    command: [uvicorn, services.ontology.gateway:production_app, --factory, --host, 0.0.0.0, --port, "9621"]
+    ports:
+      - "127.0.0.1:${LIGHTRAG_PORT:-9621}:9621"
+    environment: *ontology_environment
+    networks: [knowledge_api, ontology_backend]
+    depends_on:
+      lightrag:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9621/health', timeout=5)"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+
+networks:
+  # Egress is needed for LightRAG's embedding and language-model providers.
+  ontology_backend:
