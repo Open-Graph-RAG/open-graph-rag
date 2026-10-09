@@ -502,15 +502,43 @@ class ReviewFixTests(unittest.TestCase):
 
     # --- R3: ontology_id is filtered client-side (upstream ignores the param) ---
     def test_facts_ontology_id_filter_applies_even_when_upstream_ignores_it(self) -> None:
-        # Replace list_facts with a stub that mirrors the real upstream: it
-        # ignores the ontology_id argument and returns every fact. The UI
-        # route must still apply the filter on the client.
-        with patch.object(app_module.OntologyClient, "list_facts",
-                          new=_ignore_ontology_id):
-            response = self.client.get("/facts?ontology_id=ogr-core")
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("f-1", response.text)
-        self.assertNotIn("LibreChat", response.text)  # No fact with ontology_id != ogr-core
+        # The real upstream `services/ontology/api.py:139-141` discards the
+        # `ontology_id` query param. The UI route must still apply the
+        # filter on the client so the page does not show facts from
+        # other ontologies. This test pins the regression: a foreign-
+        # ontology fact returned by the upstream must not appear in the
+        # rendered table when the user filters by another ontology.
+        fixtures = _default_fixtures()
+        fixtures["facts"].append({
+            "id": "f-other",
+            "kind": "entity",
+            "ontology_id": "other-onto",
+            "ontology_version": "9.9.9",
+            "workspace": VALID_WORKSPACE,
+            "entity_type": "System",
+            "properties": {"name": "ForeignTool"},
+        })
+
+        async def _ignore_ontology_id(self_unused, ontology_id=None):
+            # Stub for FakeUpstream.list_facts: ignore the ontology_id
+            # argument and return every fact, mirroring the real upstream.
+            return list(fixtures["facts"])
+
+        # Build a fresh client backed by the augmented fixtures, then
+        # patch FakeUpstream.list_facts at the *class* level so the
+        # instance built by `_make_client` resolves to our stub.
+        client = _make_client(fixtures)
+        try:
+            _login(client)
+            with patch.object(FakeUpstream, "list_facts", new=_ignore_ontology_id):
+                response = client.get("/facts?ontology_id=ogr-core")
+            self.assertEqual(response.status_code, 200)
+            # The ogr-core fact must be present; the foreign-ontology
+            # fact must be excluded by the UI's client-side filter.
+            self.assertIn("f-1", response.text)
+            self.assertNotIn("f-other", response.text)
+        finally:
+            _teardown(client)
 
     # --- R4: 401 sets a flash message visible after redirect ---
     def test_401_sets_flash_visible_on_login_page(self) -> None:
@@ -577,17 +605,6 @@ class ReviewFixTests(unittest.TestCase):
             asyncio.run(client.list_facts())
         self.assertEqual(cm.exception.status_code, 502)
         self.assertIn("non-list", cm.exception.detail)
-
-
-async def _ignore_ontology_id(ontology_id=None):
-    """Return every fact regardless of the requested ontology_id.
-
-    Mirrors the real upstream `services/ontology/api.py:139-141`, which
-    discards the `ontology_id` query param. The UI route must still
-    apply the filter on the client.
-    """
-    from services.ontology_ui.tests.test_app import _default_fixtures  # type: ignore
-    return list(_default_fixtures()["facts"])
 
 
 class OntologyVersionTests(unittest.TestCase):
