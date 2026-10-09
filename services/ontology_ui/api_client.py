@@ -78,15 +78,35 @@ class OntologyClient:
 
     @staticmethod
     def _coerce(resp: httpx.Response) -> Any:
+        """Parse a 2xx response body.
+
+        Returns ``None`` for an empty body. Raises ``UpstreamError(502)``
+        if the body is non-empty but not valid JSON — a malformed payload
+        must not silently masquerade as a successful empty list.
+        """
         if not resp.content:
-            return {}
+            return None
         try:
             return resp.json()
-        except (ValueError, json.JSONDecodeError):
-            return resp.text
+        except (ValueError, json.JSONDecodeError) as exc:
+            raise UpstreamError(502, "Upstream returned malformed JSON") from exc
+
+    @staticmethod
+    def _coerce_list(data: Any) -> list[dict[str, Any]]:
+        """Coerce a parsed payload to a list, treating a non-list as upstream failure."""
+        if isinstance(data, list):
+            return data
+        if data is None:
+            return []
+        raise UpstreamError(502, "Upstream returned a non-list payload")
 
     def _raise(self, resp: httpx.Response) -> None:
-        payload = self._coerce(resp)
+        payload: Any = None
+        if resp.content:
+            try:
+                payload = resp.json()
+            except (ValueError, json.JSONDecodeError):
+                payload = resp.text
         detail = "Upstream error"
         if isinstance(payload, dict):
             raw = payload.get("detail")
@@ -125,14 +145,12 @@ class OntologyClient:
         return {"status": "error"}  # pragma: no cover - _raise always raises
 
     async def list_ontologies(self) -> list[dict[str, Any]]:
-        data = await self._get("/v1/ontologies")
-        return data if isinstance(data, list) else []
+        return self._coerce_list(await self._get("/v1/ontologies"))
 
     async def list_versions(self, ontology_id: str) -> list[dict[str, Any]]:
         if not ontology_id or not ontology_id.strip():
             raise ValueError("ontology_id is required")
-        data = await self._get(f"/v1/ontologies/{ontology_id}/versions")
-        return data if isinstance(data, list) else []
+        return self._coerce_list(await self._get(f"/v1/ontologies/{ontology_id}/versions"))
 
     async def get_version(self, ontology_id: str, version: str) -> dict[str, Any] | None:
         if not ontology_id or not ontology_id.strip():
@@ -159,27 +177,13 @@ class OntologyClient:
 
     async def list_facts(self, ontology_id: str | None = None) -> list[dict[str, Any]]:
         params: dict[str, Any] | None = {"ontology_id": ontology_id} if ontology_id else None
-        data = await self._get("/v1/facts", params=params)
-        return data if isinstance(data, list) else []
+        return self._coerce_list(await self._get("/v1/facts", params=params))
 
     async def list_quarantine(self) -> list[dict[str, Any]]:
-        data = await self._get("/v1/quarantine")
-        return data if isinstance(data, list) else []
+        return self._coerce_list(await self._get("/v1/quarantine"))
 
     async def list_sync(self) -> list[dict[str, Any]]:
-        data = await self._get("/v1/projection-status")
-        return data if isinstance(data, list) else []
+        return self._coerce_list(await self._get("/v1/projection-status"))
 
     async def audit(self) -> list[dict[str, Any]]:
-        data = await self._get("/v1/ontology-audit")
-        return data if isinstance(data, list) else []
-
-
-def production_client(base_url: str) -> OntologyClient:
-    """Build a long-lived client for the application's health probe.
-
-    The token used here is intentionally empty: the production_app factory
-    pings `/health` on startup, which does not require auth. Per-request
-    clients are created inside the request handler with the user's token.
-    """
-    return OntologyClient(base_url, token="startup-probe", workspace="startup-probe")
+        return self._coerce_list(await self._get("/v1/ontology-audit"))

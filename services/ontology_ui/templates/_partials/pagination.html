@@ -1,36 +1,27 @@
-{% set total_pages = ((total + page_size - 1) // page_size) if page_size else 1 %}
-{% set total_pages = [total_pages, 1] | max %}
-
-{% set query_parts = [] %}
-{% for key, value in (query_args or {}).items() %}
-  {% set _ = query_parts.append(key + '=' + (value | string)) %}
-{% endfor %}
-{% set query_string = query_parts | join('&') %}
-
-{% if total_pages > 1 %}
+{% if pagination is mapping and pagination.total_pages | default(0) > 1 %}
   <div class="pagination">
     <div class="pagination__info">
-      Page {{ page }} of {{ total_pages }} · {{ total }} total
+      Page {{ pagination.page }} of {{ pagination.total_pages }} · {{ pagination.total }} total
     </div>
     <div class="pagination__controls">
-      {% if page > 1 %}
-        <a class="btn btn--sm" href="{{ path }}?{% if query_string %}{{ query_string }}&{% endif %}page={{ page - 1 }}&page_size={{ page_size }}">Previous</a>
+      {% if pagination.prev_url %}
+        <a class="btn btn--sm" href="{{ pagination.prev_url }}">Previous</a>
       {% else %}
         <span class="btn btn--sm" aria-disabled="true">Previous</span>
       {% endif %}
 
-      <form class="pagination__jump" method="get" action="{{ path }}">
-        {% for key, value in (query_args or {}).items() %}
+      <form class="pagination__jump" method="get" action="{{ pagination.path }}">
+        {% for key, value in (pagination.query_args or {}).items() %}
           <input type="hidden" name="{{ key }}" value="{{ value }}">
         {% endfor %}
-        <input type="hidden" name="page_size" value="{{ page_size }}">
+        <input type="hidden" name="page_size" value="{{ pagination.page_size }}">
         <label for="page-jump">Go to</label>
-        <input id="page-jump" class="form-input" type="number" name="page" min="1" max="{{ total_pages }}" value="{{ page }}" aria-label="Jump to page">
+        <input id="page-jump" class="form-input" type="number" name="page" min="1" max="{{ pagination.total_pages }}" value="{{ pagination.page }}" aria-label="Jump to page">
         <button type="submit" class="btn btn--sm">Go</button>
       </form>
 
-      {% if page < total_pages %}
-        <a class="btn btn--sm" href="{{ path }}?{% if query_string %}{{ query_string }}&{% endif %}page={{ page + 1 }}&page_size={{ page_size }}">Next</a>
+      {% if pagination.next_url %}
+        <a class="btn btn--sm" href="{{ pagination.next_url }}">Next</a>
       {% else %}
         <span class="btn btn--sm" aria-disabled="true">Next</span>
       {% endif %}

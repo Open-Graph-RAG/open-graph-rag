@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import urlencode as _urlencode
 
 
 def isoformat(value: Any) -> str:
@@ -85,3 +86,20 @@ def register(env: Any) -> None:
     env.filters["pretty_json"] = pretty_json
     env.filters["status_kind"] = status_kind
     env.filters["fact_kind_label"] = fact_kind_label
+
+    def _urlencode_filter(value: Any) -> str:
+        """URL-encode a mapping of query-string parameters.
+
+        Empty / `None` values are skipped so callers can pass the raw
+        result of `request.query_params` and get a clean, sorted string
+        back without a manual filter pass.
+        """
+        if not value:
+            return ""
+        if hasattr(value, "items"):
+            items = [(str(k), "" if v is None else str(v)) for k, v in value.items()]
+        else:
+            items = [(str(k), "" if v is None else str(v)) for k, v in value]
+        return _urlencode([(k, v) for k, v in items if v != ""])
+
+    env.filters["urlencode"] = _urlencode_filter

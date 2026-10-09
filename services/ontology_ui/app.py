@@ -9,6 +9,7 @@ mutations stay on the canonical ontology API.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -18,7 +19,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 import httpx
-from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -26,7 +27,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.status import HTTP_303_SEE_OTHER
 
 from . import auth
-from .api_client import OntologyClient, UpstreamError, production_client
+from .api_client import OntologyClient, UpstreamError
 from .filters import register as register_filters
 from .auth import LoginRedirect, is_authenticated
 
@@ -196,10 +197,41 @@ def _format_kv(detail: Any) -> str:
     if isinstance(detail, str):
         return detail
     try:
-        import json
         return json.dumps(detail, default=str)
     except Exception:  # pragma: no cover
         return str(detail)
+
+
+def _safe_next(value: Any, default: str = "/") -> str:
+    """Sanitize a `next` redirect target.
+
+    Accepts only same-origin absolute paths — a single leading `/`, no
+    protocol-relative URLs, no backslash trickery. Anything else falls
+    back to the safe default. Mitigates open-redirect via crafted
+    `next` parameters on `/login`.
+    """
+    if not isinstance(value, str) or not value:
+        return default
+    if not value.startswith("/"):
+        return default
+    if value.startswith("//") or value.startswith("/\\"):
+        return default
+    if "\\" in value:
+        return default
+    return value
+
+
+def _pagination_links(
+    path: str, query_args: dict[str, str], page: int, total_pages: int
+) -> dict[str, str | None]:
+    """Build safe Prev/Next URLs for the pagination partial.
+
+    Returns `{"prev_url": ..., "next_url": ...}`, each `None` if the
+    respective page is out of range.
+    """
+    prev_url = _pagination_url(path, query_args, page - 1) if page > 1 else None
+    next_url = _pagination_url(path, query_args, page + 1) if page < total_pages else None
+    return {"prev_url": prev_url, "next_url": next_url}
 
 
 def _error_context(
@@ -299,6 +331,12 @@ def create_app(
             api_url, token=token, workspace=workspace, client=app.state.http_client
         )
 
+    def _login_redirect(request: Request) -> RedirectResponse:
+        """Clear the session, set a flash, and return a redirect to `/login`."""
+        auth.clear_session(request)
+        request.session["flash"] = "Session expired or token invalid."
+        return _redirect(request, "/login", next_path=request.url.path)
+
     def render(
         request: Request,
         name: str,
@@ -340,12 +378,15 @@ def create_app(
 
     @app.get("/login", response_class=HTMLResponse)
     async def login_get(request: Request, next: str = "/"):
+        # Surface any flash message written by an upstream 401 handler
+        # (e.g. "Session expired or token invalid.") and clear it on read.
+        flash = request.session.pop("flash", None)
         return render(
             request,
             "login.html",
             {
-                "next": next or "/",
-                "error": None,
+                "next": _safe_next(next),
+                "error": flash,
                 "workspace_hint": os.environ.get("ONTOLOGY_WORKSPACE", ""),
             },
         )
@@ -363,14 +404,13 @@ def create_app(
                 request,
                 "login.html",
                 {
-                    "next": next or "/",
+                    "next": _safe_next(next),
                     "error": error,
                     "workspace_hint": os.environ.get("ONTOLOGY_WORKSPACE", ""),
                 },
                 status_code=422,
             )
-        target = next if isinstance(next, str) and next.startswith("/") else "/"
-        return RedirectResponse(url=target, status_code=HTTP_303_SEE_OTHER)
+        return RedirectResponse(url=_safe_next(next), status_code=HTTP_303_SEE_OTHER)
 
     @app.post("/logout")
     async def logout(request: Request):
@@ -379,22 +419,24 @@ def create_app(
 
     @app.get("/", response_class=HTMLResponse)
     async def dashboard(request: Request):
+        import asyncio
+
         principal = auth.get_principal(request)
         try:
-            client = OntologyClient(
-                base_url=api_url,
-                token=principal["token"],
-                workspace=principal["workspace"],
+            client = _client_for(principal["token"], principal["workspace"])
+            # Issue the five probes concurrently so the homepage does not
+            # serialise their timeouts. Each call uses the shared httpx
+            # client so connections are pooled across requests.
+            ontologies, facts, outbox, audit_entries, upstream_health = await asyncio.gather(
+                client.list_ontologies(),
+                client.list_facts(),
+                client.list_sync(),
+                client.audit(),
+                client.health(),
             )
-            ontologies = await client.list_ontologies()
-            facts = await client.list_facts()
-            outbox = await client.list_sync()
-            audit_entries = await client.audit()
-            upstream_health = await client.health()
         except UpstreamError as exc:
             if exc.status_code == 401:
-                auth.clear_session(request)
-                return _redirect(request, "/login", next_path=request.url.path)
+                return _login_redirect(request)
             return render(
                 request,
                 "_partials/error_panel.html",
@@ -438,8 +480,7 @@ def create_app(
             rows = await client.list_ontologies()
         except UpstreamError as exc:
             if exc.status_code == 401:
-                auth.clear_session(request)
-                return _redirect(request, "/login", next_path=request.url.path)
+                return _login_redirect(request)
             return render(
                 request,
                 "_partials/error_panel.html",
@@ -456,8 +497,7 @@ def create_app(
             rows = await client.list_versions(ontology_id)
         except UpstreamError as exc:
             if exc.status_code == 401:
-                auth.clear_session(request)
-                return _redirect(request, "/login", next_path=request.url.path)
+                return _login_redirect(request)
             return render(
                 request,
                 "_partials/error_panel.html",
@@ -482,8 +522,7 @@ def create_app(
             definition = await client.get_version(ontology_id, version)
         except UpstreamError as exc:
             if exc.status_code == 401:
-                auth.clear_session(request)
-                return _redirect(request, "/login", next_path=request.url.path)
+                return _login_redirect(request)
             if exc.status_code == 404:
                 return render(
                     request,
@@ -526,6 +565,7 @@ def create_app(
                 "ontology_id": ontology_id,
                 "version": version,
                 "definition": _shape_ontology(definition),
+                "extra_q": {k: v for k, v in request.query_params.multi_items() if k != "tab"},
             },
         )
 
@@ -540,8 +580,7 @@ def create_app(
             profile = await client.extraction_profile(ontology_id, version)
         except UpstreamError as exc:
             if exc.status_code == 401:
-                auth.clear_session(request)
-                return _redirect(request, "/login", next_path=request.url.path)
+                return _login_redirect(request)
             if exc.status_code == 404:
                 return render(
                     request,
@@ -585,11 +624,15 @@ def create_app(
         page_size = _int_query(request, "page_size", DEFAULT_PAGE_SIZE, maximum=MAX_PAGE_SIZE)
         try:
             client = _client_for(principal["token"], principal["workspace"])
+            # The current upstream `/v1/facts` route discards the
+            # `ontology_id` query parameter (see `services/ontology/api.py`).
+            # We still pass it for forward compatibility, and also apply
+            # the filter on the response here so the UI does not silently
+            # ignore the user-selected ontology.
             rows = await client.list_facts(ontology_filter or None)
         except UpstreamError as exc:
             if exc.status_code == 401:
-                auth.clear_session(request)
-                return _redirect(request, "/login", next_path=request.url.path)
+                return _login_redirect(request)
             return render(
                 request,
                 "_partials/error_panel.html",
@@ -599,6 +642,8 @@ def create_app(
 
         if kind in {"entity", "relation"}:
             rows = [r for r in rows if r.get("kind") == kind]
+        if ontology_filter:
+            rows = [r for r in rows if r.get("ontology_id") == ontology_filter]
         if predicate:
             needle = predicate.lower()
             rows = [r for r in rows if isinstance(r.get("predicate"), str) and needle in r["predicate"].lower()]
@@ -612,29 +657,34 @@ def create_app(
 
         page_rows, total, total_pages, current_page = _paginate(rows, page, page_size)
         query_args = _query_args(request, exclude={"page"})
-        return render(
-            request,
-            "facts.html",
-            {
-                "principal": principal,
-                "facts": _shape_facts(page_rows),
-                "filters": {
-                    "kind": kind,
-                    "ontology_id": ontology_filter,
-                    "predicate": predicate,
-                    "q": free_text,
-                },
-                "counts": {"total": total, "filtered": len(rows)},
-                "pagination": {
-                    "page": current_page,
-                    "page_size": page_size,
-                    "total": total,
-                    "total_pages": total_pages,
-                    "path": "/facts",
-                    "query_args": query_args,
-                },
+        links = _pagination_links("/facts", query_args, current_page, total_pages)
+        context: dict[str, Any] = {
+            "principal": principal,
+            "facts": _shape_facts(page_rows),
+            "filters": {
+                "kind": kind,
+                "ontology_id": ontology_filter,
+                "predicate": predicate,
+                "q": free_text,
             },
-        )
+            "counts": {"total": total, "filtered": len(rows)},
+            "pagination": {
+                "page": current_page,
+                "page_size": page_size,
+                "total": total,
+                "total_pages": total_pages,
+                "path": "/facts",
+                "query_args": query_args,
+                "prev_url": links["prev_url"],
+                "next_url": links["next_url"],
+            },
+        }
+        # htmx requests receive just the table region, not the full page.
+        if request.headers.get("HX-Request") == "true":
+            return templates.TemplateResponse(
+                request, "_partials/facts_fragment.html", context, status_code=200
+            )
+        return render(request, "facts.html", context)
 
     @app.get("/quarantine", response_class=HTMLResponse)
     async def quarantine(request: Request):
@@ -646,8 +696,7 @@ def create_app(
             rows = await client.list_quarantine()
         except UpstreamError as exc:
             if exc.status_code == 401:
-                auth.clear_session(request)
-                return _redirect(request, "/login", next_path=request.url.path)
+                return _login_redirect(request)
             return render(
                 request,
                 "_partials/error_panel.html",
@@ -658,6 +707,7 @@ def create_app(
             )
         page_rows, total, total_pages, current_page = _paginate(rows, page, page_size)
         query_args = _query_args(request, exclude={"page"})
+        links = _pagination_links("/quarantine", query_args, current_page, total_pages)
         return render(
             request,
             "quarantine.html",
@@ -671,6 +721,8 @@ def create_app(
                     "total_pages": total_pages,
                     "path": "/quarantine",
                     "query_args": query_args,
+                    "prev_url": links["prev_url"],
+                    "next_url": links["next_url"],
                 },
             },
         )
@@ -685,8 +737,7 @@ def create_app(
             rows = await client.list_sync()
         except UpstreamError as exc:
             if exc.status_code == 401:
-                auth.clear_session(request)
-                return _redirect(request, "/login", next_path=request.url.path)
+                return _login_redirect(request)
             return render(
                 request,
                 "_partials/error_panel.html",
@@ -701,6 +752,7 @@ def create_app(
         )
         page_rows, total, total_pages, current_page = _paginate(rows, page, page_size)
         query_args = _query_args(request, exclude={"page"})
+        links = _pagination_links("/projection-status", query_args, current_page, total_pages)
         return render(
             request,
             "projection.html",
@@ -714,6 +766,8 @@ def create_app(
                     "total_pages": total_pages,
                     "path": "/projection-status",
                     "query_args": query_args,
+                    "prev_url": links["prev_url"],
+                    "next_url": links["next_url"],
                 },
             },
         )
@@ -728,8 +782,7 @@ def create_app(
             rows = await client.audit()
         except UpstreamError as exc:
             if exc.status_code == 401:
-                auth.clear_session(request)
-                return _redirect(request, "/login", next_path=request.url.path)
+                return _login_redirect(request)
             return render(
                 request,
                 "_partials/error_panel.html",
@@ -739,6 +792,7 @@ def create_app(
         rows.reverse()
         page_rows, total, total_pages, current_page = _paginate(rows, page, page_size)
         query_args = _query_args(request, exclude={"page"})
+        links = _pagination_links("/audit", query_args, current_page, total_pages)
         return render(
             request,
             "audit.html",
@@ -752,6 +806,8 @@ def create_app(
                     "total_pages": total_pages,
                     "path": "/audit",
                     "query_args": query_args,
+                    "prev_url": links["prev_url"],
+                    "next_url": links["next_url"],
                 },
             },
         )

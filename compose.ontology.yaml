@@ -30,7 +30,10 @@ services:
       LIGHTRAG_WORKSPACE: ${ONTOLOGY_WORKSPACE:-company_governed}
       LIGHTRAG_URL: http://lightrag:9621
       LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY:?Configure .env}
-    networks: [knowledge_db, ontology_backend]
+    # `knowledge_api` is non-internal, so the host port publishes; postgres
+    # (knowledge_db) and lightrag (knowledge_db + ontology_backend) are
+    # still unreachable from the UI which only joins knowledge_api.
+    networks: [knowledge_db, knowledge_api, ontology_backend]
     depends_on:
       postgres:
         condition: service_healthy
@@ -97,10 +100,11 @@ services:
       ONTOLOGY_UI_SESSION_SECRET: ${ONTOLOGY_UI_SESSION_SECRET:?Configure .env}
       ONTOLOGY_WORKSPACE: ${ONTOLOGY_WORKSPACE:-company_governed}
       ONTOLOGY_UI_HTTPS_ONLY: ${ONTOLOGY_UI_HTTPS_ONLY:-}
-    # `knowledge_db` is `internal: true`, which prevents Docker Desktop
-    # from publishing the host port. Attach the UI to a non-internal
-    # network as well so the host port is actually exposed.
-    networks: [knowledge_db, ontology_backend]
+    # Per CONTRACT.md, the UI must not join `ontology_backend` (which
+    # carries `lightrag`) or `knowledge_db` (which carries `postgres`).
+    # The UI only needs API access on the non-internal `knowledge_api`
+    # network so the host port publishes.
+    networks: [knowledge_api]
     depends_on:
       ontology:
         condition: service_healthy

@@ -137,7 +137,6 @@ def _make_client(
     # Patch the OntologyClient used by the app to return our fake.
     patches = [
         patch.object(app_module, "OntologyClient", side_effect=_build),
-        patch.object(app_module, "production_client", return_value=FakeUpstream(fixtures)),
     ]
     for p in patches:
         p.start()
@@ -423,6 +422,172 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("Outbox", response.text)
         finally:
             _teardown(client)
+
+
+class ReviewFixTests(unittest.TestCase):
+    """Regression tests for the post-review fixes (C1/R1/R2/R3/R4/R6/R7/O1)."""
+
+    def setUp(self) -> None:
+        self.fixtures = _default_fixtures()
+        self.client = _make_client(self.fixtures)
+        _login(self.client)
+
+    def tearDown(self) -> None:
+        _teardown(self.client)
+
+    # --- C1: /facts?q must not crash ---
+    def test_facts_free_text_search_does_not_crash(self) -> None:
+        response = self.client.get("/facts?q=LibreChat")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("LibreChat", response.text)
+
+    def test_facts_free_text_search_narrows_results(self) -> None:
+        response = self.client.get("/facts?q=DEPENDS")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("f-2", response.text)
+        self.assertNotIn("LibreChat", response.text)
+
+    # --- R1: open redirect via `next` is blocked ---
+    def test_login_post_blocks_protocol_relative_next(self) -> None:
+        response = self.client.post(
+            "/login",
+            data={"token": VALID_TOKEN, "workspace": VALID_WORKSPACE, "next": "//evil.com"},
+            follow_redirects=False,
+        )
+        self.assertIn(response.status_code, (302, 303))
+        self.assertEqual(response.headers["location"], "/")
+
+    def test_login_post_blocks_absolute_url_next(self) -> None:
+        response = self.client.post(
+            "/login",
+            data={"token": VALID_TOKEN, "workspace": VALID_WORKSPACE, "next": "https://evil.com"},
+            follow_redirects=False,
+        )
+        self.assertIn(response.status_code, (302, 303))
+        self.assertEqual(response.headers["location"], "/")
+
+    def test_login_post_blocks_backslash_next(self) -> None:
+        response = self.client.post(
+            "/login",
+            data={"token": VALID_TOKEN, "workspace": VALID_WORKSPACE, "next": "/\\evil.com"},
+            follow_redirects=False,
+        )
+        self.assertIn(response.status_code, (302, 303))
+        self.assertEqual(response.headers["location"], "/")
+
+    def test_login_post_accepts_safe_relative_next(self) -> None:
+        response = self.client.post(
+            "/login",
+            data={"token": VALID_TOKEN, "workspace": VALID_WORKSPACE, "next": "/facts?page=2"},
+            follow_redirects=False,
+        )
+        self.assertIn(response.status_code, (302, 303))
+        self.assertEqual(response.headers["location"], "/facts?page=2")
+
+    # --- R2: dashboard reuses the shared httpx client ---
+    def test_dashboard_passes_shared_client_to_ontology_client(self) -> None:
+        captured: dict[str, Any] = {}
+
+        def _capture(base_url, token, workspace, *, client=None):
+            captured["base_url"] = base_url
+            captured["token"] = token
+            captured["workspace"] = workspace
+            captured["client"] = client
+            return FakeUpstream(self.fixtures)
+
+        with patch.object(app_module, "OntologyClient", side_effect=_capture):
+            response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNotNone(captured.get("client"), "dashboard must pass the shared httpx client")
+
+    # --- R3: ontology_id is filtered client-side (upstream ignores the param) ---
+    def test_facts_ontology_id_filter_applies_even_when_upstream_ignores_it(self) -> None:
+        # Replace list_facts with a stub that mirrors the real upstream: it
+        # ignores the ontology_id argument and returns every fact. The UI
+        # route must still apply the filter on the client.
+        with patch.object(app_module.OntologyClient, "list_facts",
+                          new=_ignore_ontology_id):
+            response = self.client.get("/facts?ontology_id=ogr-core")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("f-1", response.text)
+        self.assertNotIn("LibreChat", response.text)  # No fact with ontology_id != ogr-core
+
+    # --- R4: 401 sets a flash message visible after redirect ---
+    def test_401_sets_flash_visible_on_login_page(self) -> None:
+        client = _make_client(_default_fixtures(), status_overrides={"list_facts": 401})
+        try:
+            _login(client)
+            response = client.get("/facts", follow_redirects=False)
+            self.assertIn(response.status_code, (302, 303))
+            location = response.headers["location"]
+            # The flash travels via the session cookie that TestClient carries
+            # across the redirect.
+            login_page = client.get(location, follow_redirects=False)
+            self.assertEqual(login_page.status_code, 200)
+            self.assertIn("Session expired or token invalid", login_page.text)
+        finally:
+            _teardown(client)
+
+    # --- R6: pagination URLs URL-encode filter values ---
+    def test_pagination_url_encodes_special_characters(self) -> None:
+        from services.ontology_ui.app import _pagination_url
+        # Special chars (`&`, `=`, `#`) must be percent-encoded so the
+        # value round-trips as a single query param, not split into two.
+        self.assertEqual(
+            _pagination_url("/facts", {"q": "a&b"}, 2),
+            "/facts?q=a%26b&page=2",
+        )
+        self.assertEqual(
+            _pagination_url("/facts", {"q": "a=b"}, 2),
+            "/facts?q=a%3Db&page=2",
+        )
+        self.assertEqual(
+            _pagination_url("/facts", {"q": "a#b"}, 2),
+            "/facts?q=a%23b&page=2",
+        )
+
+    # --- R7: htmx requests get a fragment, not the full page ---
+    def test_facts_returns_fragment_for_htmx_request(self) -> None:
+        response = self.client.get(
+            "/facts?kind=relation",
+            headers={"HX-Request": "true"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("<!DOCTYPE", response.text)
+        # The fragment must still include the filtered rows.
+        self.assertIn("f-2", response.text)
+
+    # --- O1: a 200 with a non-list payload from a list endpoint surfaces as 502 ---
+    def test_list_facts_502_on_malformed_payload(self) -> None:
+        from services.ontology_ui.api_client import OntologyClient, UpstreamError
+        import httpx
+
+        def _handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, content=b'"upstream returned a JSON string, not a list"')
+
+        transport = httpx.MockTransport(_handler)
+        client = OntologyClient(
+            base_url="http://upstream.test",
+            token=VALID_TOKEN,
+            workspace=VALID_WORKSPACE,
+            client=httpx.AsyncClient(transport=transport),
+        )
+        with self.assertRaises(UpstreamError) as cm:
+            import asyncio
+            asyncio.run(client.list_facts())
+        self.assertEqual(cm.exception.status_code, 502)
+        self.assertIn("non-list", cm.exception.detail)
+
+
+async def _ignore_ontology_id(ontology_id=None):
+    """Return every fact regardless of the requested ontology_id.
+
+    Mirrors the real upstream `services/ontology/api.py:139-141`, which
+    discards the `ontology_id` query param. The UI route must still
+    apply the filter on the client.
+    """
+    from services.ontology_ui.tests.test_app import _default_fixtures  # type: ignore
+    return list(_default_fixtures()["facts"])
 
 
 class OntologyVersionTests(unittest.TestCase):

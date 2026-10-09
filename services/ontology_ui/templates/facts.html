@@ -43,24 +43,6 @@
   <div id="facts-loading" class="text-secondary text-sm" style="display:none">Loading…</div>
 
   <div id="facts-table-region">
-    <div class="filter-meta">
-      <p class="text-secondary text-sm">
-        {{ counts.total | default(facts | length) }} fact{{ "s" if (counts.total | default(facts | length)) != 1 else "" }}
-        {% if filters.kind or filters.ontology_id or filters.predicate or filters.q %}
-          · Filters:
-          {% if filters.kind %}kind={{ filters.kind }}{% endif %}
-          {% if filters.ontology_id %}ontology={{ filters.ontology_id }}{% endif %}
-          {% if filters.predicate %}predicate={{ filters.predicate }}{% endif %}
-          {% if filters.q %}q={{ filters.q }}{% endif %}
-        {% endif %}
-      </p>
-      {% if filters.kind or filters.ontology_id or filters.predicate or filters.q %}
-        <a href="/facts" class="text-sm">Clear filters</a>
-      {% endif %}
-    </div>
-
-    {% include "_partials/facts_table.html" %}
-
-    {% if pagination is defined %}{% include "_partials/pagination.html" %}{% endif %}
+    {% include "_partials/facts_fragment.html" %}
   </div>
 {% endblock %}

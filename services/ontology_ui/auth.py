@@ -12,14 +12,11 @@ HTTPS in production.
 from __future__ import annotations
 
 import secrets
-from typing import Any
 from urllib.parse import quote
 
 from fastapi import Request
 from fastapi.responses import RedirectResponse
 from starlette.status import HTTP_303_SEE_OTHER
-
-from .api_client import OntologyClient
 
 
 SESSION_KEYS = ("token", "workspace")
@@ -84,16 +81,6 @@ def _redirect_to_login(request: Request) -> RedirectResponse:
     next_arg = quote(path, safe="/")
     target = f"/login?next={next_arg}"
     return RedirectResponse(url=target, status_code=HTTP_303_SEE_OTHER)
-
-
-def build_client(request: Request, api_url: str) -> OntologyClient:
-    """Construct a per-request `OntologyClient` from the session."""
-    principal = get_principal(request)
-    return OntologyClient(
-        base_url=api_url,
-        token=principal["token"],
-        workspace=principal["workspace"],
-    )
 
 
 def clear_session(request: Request) -> None:
