@@ -6,3 +6,5 @@ backups/
 backup/private/
 .venv/
 .venv-kev/
+.cache/
+scripts/benchmark_*.json
