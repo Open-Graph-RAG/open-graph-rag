@@ -98,6 +98,58 @@ version history on updates, and refuses to overwrite an agent owned by a
 different user. Reapplying updates this specific agent's managed definition;
 export any customizations before replacing them.
 
+## Experimental decision agent
+
+The experimental recipe is kept separately in
+`agents/product-knowledge-decision-experimental.json`, with a readable mirror
+in `agents/product-knowledge-decision-experimental.instructions.md`. It has a
+separate ID, `agent_product_knowledge_decision_experimental`, and explicitly
+uses `gpt-6-luna`; it does not replace or update the planner above. The recipe
+is advisory and asks for no more than three decision-tool invocations. This is
+a prompt policy, not a deterministic limit enforced by the model runtime; the
+offline test simulates attempts but does not prove Luna will obey it.
+The tool appears only when the optional decision deployment is enabled; prepare
+its local model cache as described in [the Kev setup guide](kev-decision-setup.md).
+
+The [held-out evaluation](../evaluation/report.md) failed the direct classifier
+quality gate and stopped the controlled comparison at its input reservation.
+The graph recipe surfaced fewer supported conflicts than baseline. Keep this
+definition experimental; these instructions do not recommend recipe rollout.
+
+Before provisioning, configure `.env` with `gpt-6-luna` in `CHAT_MODELS` and
+valid `CHAT_API_KEY` and `CHAT_API_BASE` values for the intended
+OpenAI-compatible provider. The Compose configuration passes `CHAT_MODELS` to
+LibreChat as `OPENAI_MODELS`; the explicit `--model` flag below selects Luna
+for this agent even when another model appears first. Keep the ordinary
+`gpt-4.1-mini` default in `.env.example` for the original setup.
+
+Copy the separate definition and provisioner into LibreChat. First run the
+check mode for the existing account, then apply the same explicit selection:
+
+```bash
+docker compose cp agents/product-knowledge-decision-experimental.json librechat:/tmp/product-knowledge-decision-experimental.json
+docker compose cp scripts/provision_product_agent.cjs librechat:/tmp/provision_product_agent.cjs
+docker compose exec -T librechat node /tmp/provision_product_agent.cjs --email you@example.com --manifest /tmp/product-knowledge-decision-experimental.json --agent-id agent_product_knowledge_decision_experimental --model gpt-6-luna
+# Review the check output, then provision for the same account:
+docker compose exec -T librechat node /tmp/provision_product_agent.cjs --email you@example.com --manifest /tmp/product-knowledge-decision-experimental.json --agent-id agent_product_knowledge_decision_experimental --model gpt-6-luna --apply
+```
+
+The provisioner retains its original ID and model-selection behavior when
+`--agent-id` and `--model` are omitted. It checks ownership for whichever ID
+is selected and refuses to overwrite an agent owned by another user. The
+provisioner tests are offline and do not connect to MongoDB, provision a live
+agent, or call a model provider:
+
+```bash
+node scripts/tests/test_product_knowledge_experimental.cjs
+```
+
+Those tests check manifest separation, the recipe's prompt invariants, model
+and ID selection, and owner refusal. Their synthetic three-attempt ledger
+checks that errors consume attempts, identical inputs are skipped, cumulative
+fingerprints are carried, and follow-up stops occur; it is not an evaluation
+of model behavior.
+
 Select **Product Knowledge & Initiative Planner** in LibreChat. For the
 [fictional demo](../sample-data/product-knowledge-demo/README.md), ingest the
 simulated sources first and use LightRAG; Jira/Figma authorization is only
@@ -130,3 +182,5 @@ conversation and does not send external messages or create records.
 - [Atlassian MCP v2 supported tools](https://support.atlassian.com/atlassian-ai-gateway/docs/supported-tools/)
 - [Figma remote MCP server setup](https://developers.figma.com/docs/figma-mcp-server/remote-server-installation/)
 - [Figma MCP tools and prompts](https://developers.figma.com/docs/figma-mcp-server/tools-and-prompts/)
+
+The experimental manifest sets `model_parameters.reasoning_effort` to `none` and temperature to zero. [OpenAI’s Luna model documentation](https://developers.openai.com/api/docs/models/gpt-6-luna) requires `none` for Chat Completions function calling; the installed LibreChat schema and OpenAI configuration mapping accept this setting. The original manifest remains unchanged.

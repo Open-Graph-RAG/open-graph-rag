@@ -1,0 +1,338 @@
+{
+  "schema_version": 1,
+  "started_at_utc": "2026-10-06T20:10:11.267125+00:00",
+  "host": {
+    "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "cpu": "11th Gen Intel(R) Core(TM) i7-11800H @ 2.30GHz",
+    "logical_cpus": 16
+  },
+  "pins": {
+    "kev_model": "jaredpalmer/kev-0.8b@9a45d25eb2ab761841196625383fa1dff0e56c1e",
+    "qwen_base": "Qwen/Qwen3.5-0.8B-Base@dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68",
+    "kev_source_commit": "5e42a7a03f28134853dd3ff77461457e921e5ec1",
+    "source_path": "/tmp/kev-feasibility/source",
+    "uv_lock_sha256": "a9922dbb89acdef78299fd2b4a8c3f7f0fa1b2bc08b55595b6926fa785a9c466",
+    "uv_lock_path": "/tmp/kev-feasibility/source/uv.lock",
+    "checkpoint_path": "/tmp/kev-feasibility/hf/hub/models--jaredpalmer--kev-0.8b/snapshots/9a45d25eb2ab761841196625383fa1dff0e56c1e",
+    "hf_home": "/tmp/kev-feasibility/hf"
+  },
+  "artifact_files": [
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--jaredpalmer--kev-0.8b/snapshots/9a45d25eb2ab761841196625383fa1dff0e56c1e/.gitattributes",
+      "bytes": 1570,
+      "sha256": "34448b82c17d60fec9b65b1f093c115ddbaadc04beb1b0140b6bfed2e012a930"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--jaredpalmer--kev-0.8b/snapshots/9a45d25eb2ab761841196625383fa1dff0e56c1e/README.md",
+      "bytes": 18516,
+      "sha256": "5c0408069bf3882c758ccc10a8351a4fba6a66e5cdce0ae6b3c320f4a50c0afb"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--jaredpalmer--kev-0.8b/snapshots/9a45d25eb2ab761841196625383fa1dff0e56c1e/adapter_config.json",
+      "bytes": 1273,
+      "sha256": "748acb2cda88454cb1ba69d745ba336f3fcb5486eac349e90960c8b8d8d3e854"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--jaredpalmer--kev-0.8b/snapshots/9a45d25eb2ab761841196625383fa1dff0e56c1e/adapter_model.safetensors",
+      "bytes": 43338624,
+      "sha256": "9b908623acb162118575f4e7a94524f9c139c335be4bfb74d6cfceca01e1885a"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--jaredpalmer--kev-0.8b/snapshots/9a45d25eb2ab761841196625383fa1dff0e56c1e/head.pt",
+      "bytes": 2103999,
+      "sha256": "f400bd12802b2b105ae45d6b03774a158a3db4fccff42413734ddca2e5c920b6"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--jaredpalmer--kev-0.8b/snapshots/9a45d25eb2ab761841196625383fa1dff0e56c1e/provenance.json",
+      "bytes": 4221,
+      "sha256": "fce039fbda7de19451c9b5d3065aee2c5e063e1562a8bc18c72e297fbd15e9d8"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--jaredpalmer--kev-0.8b/snapshots/9a45d25eb2ab761841196625383fa1dff0e56c1e/result.json",
+      "bytes": 80760,
+      "sha256": "523770dbe04ad23bfdadd627d253273220fe8969a74b213e0fafb1e65093bc8c"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--jaredpalmer--kev-0.8b/snapshots/9a45d25eb2ab761841196625383fa1dff0e56c1e/tokenizer.json",
+      "bytes": 19989325,
+      "sha256": "06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--jaredpalmer--kev-0.8b/snapshots/9a45d25eb2ab761841196625383fa1dff0e56c1e/tokenizer_config.json",
+      "bytes": 1128,
+      "sha256": "8671bed7c852ce9e661be94f179a7b4ffd091c2a65aea0363e5501c20318ee45"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--jaredpalmer--kev-0.8b/snapshots/9a45d25eb2ab761841196625383fa1dff0e56c1e/train.log",
+      "bytes": 18427,
+      "sha256": "70483db425283555737ea9818a13910de767375e63febd6648023deb3fcaccfd"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--jaredpalmer--kev-0.8b/snapshots/9a45d25eb2ab761841196625383fa1dff0e56c1e/training_config.json",
+      "bytes": 1767,
+      "sha256": "3ec3d92146248265652d4387f8eb65ee8defaed4dd9173b049e7b5193045ece6"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--jaredpalmer--kev-0.8b/snapshots/9a45d25eb2ab761841196625383fa1dff0e56c1e/training_metrics.json",
+      "bytes": 326,
+      "sha256": "5f94d869c3707c0efff9f2e893e288014bc88515ae04fe5f75c9d793c453cfc1"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--Qwen--Qwen3.5-0.8B-Base/snapshots/dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68/.gitattributes",
+      "bytes": 1570,
+      "sha256": "34448b82c17d60fec9b65b1f093c115ddbaadc04beb1b0140b6bfed2e012a930"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--Qwen--Qwen3.5-0.8B-Base/snapshots/dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68/LICENSE",
+      "bytes": 11343,
+      "sha256": "50cbab8a892c5f2993b8c7351a99182507472def3b1374558308605d99b86b32"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--Qwen--Qwen3.5-0.8B-Base/snapshots/dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68/README.md",
+      "bytes": 3727,
+      "sha256": "3cff39d2674e28b95e2df75cdb2d7a687ec391931065b05df83dbae12b447b11"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--Qwen--Qwen3.5-0.8B-Base/snapshots/dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68/config.json",
+      "bytes": 2907,
+      "sha256": "b90b86f35c8e6925ef74ee04d0e758f0a845c83a42089ad82bbaa948de9b4204"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--Qwen--Qwen3.5-0.8B-Base/snapshots/dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68/merges.txt",
+      "bytes": 3353259,
+      "sha256": "a9d356d7bdf1ef4949e3e748e95b8e10ad9d4e2e838eddc38a0a7b6b94d1db8d"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--Qwen--Qwen3.5-0.8B-Base/snapshots/dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68/model.safetensors-00001-of-00001.safetensors",
+      "bytes": 1746942600,
+      "sha256": "c2b1e5a17d9c1e27685d92ed9b382911ebb99955ecd89052d1721241adfbab6c"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--Qwen--Qwen3.5-0.8B-Base/snapshots/dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68/model.safetensors.index.json",
+      "bytes": 50900,
+      "sha256": "ce9a885efdf27d3664fdef5d512ad365216f1074051ef840c7cd8e5431495d0a"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--Qwen--Qwen3.5-0.8B-Base/snapshots/dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68/preprocessor_config.json",
+      "bytes": 390,
+      "sha256": "27225450ac9c6529872ee1924fcb0962ff5634834f817040f444118116f4e516"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--Qwen--Qwen3.5-0.8B-Base/snapshots/dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68/tokenizer.json",
+      "bytes": 12807196,
+      "sha256": "fe000e3ed39ed12b8d2481d527d44f93c65d37e87645d2dcc80d1bf9d50d2927"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--Qwen--Qwen3.5-0.8B-Base/snapshots/dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68/tokenizer_config.json",
+      "bytes": 16712,
+      "sha256": "e611fbccc7c29ef3b1cafb1cb7ea548d189968632901d678fd62be68c47885de"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--Qwen--Qwen3.5-0.8B-Base/snapshots/dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68/video_preprocessor_config.json",
+      "bytes": 386,
+      "sha256": "d039cd7d88b3502a99edd455496b75b44ecf7dd3b3669748bafac37e6cecc085"
+    },
+    {
+      "path": "/tmp/kev-feasibility/hf/hub/models--Qwen--Qwen3.5-0.8B-Base/snapshots/dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68/vocab.json",
+      "bytes": 6722759,
+      "sha256": "ce99b4cb2983d118806ce0a8b777a35b093e2000a503ebde25853284c9dfa003"
+    }
+  ],
+  "installed_packages": [
+    "Jinja2==3.1.6",
+    "MarkupSafe==3.0.3",
+    "PyYAML==6.0.3",
+    "Pygments==2.21.0",
+    "accelerate==1.15.0",
+    "aiohappyeyeballs==2.7.1",
+    "aiohttp==3.14.3",
+    "aiosignal==1.4.0",
+    "annotated-doc==0.0.5",
+    "annotated-types==0.8.0",
+    "anyio==4.15.1",
+    "attrs==26.1.0",
+    "certifi==2026.7.22",
+    "charset-normalizer==3.5.1",
+    "click==8.5.0",
+    "cloudpickle==3.1.2",
+    "datasets==5.0.1",
+    "dill==0.4.1",
+    "filelock==4.0.0",
+    "frozenlist==1.8.0",
+    "fsspec==2026.6.0",
+    "h11==0.16.0",
+    "hf-xet==1.6.0",
+    "httpcore==1.0.9",
+    "httpx==0.28.1",
+    "huggingface_hub==1.32.0",
+    "idna==3.20",
+    "joblib==1.6.0",
+    "markdown-it-py==4.2.0",
+    "mdurl==0.1.2",
+    "mpmath==1.3.0",
+    "multidict==6.8.0",
+    "multiprocess==0.70.19",
+    "narwhals==2.26.0",
+    "networkx==3.6.1",
+    "numpy==2.5.3",
+    "nvidia-cublas-cu12==12.8.4.1",
+    "nvidia-cuda-cupti-cu12==12.8.90",
+    "nvidia-cuda-nvrtc-cu12==12.8.93",
+    "nvidia-cuda-runtime-cu12==12.8.90",
+    "nvidia-cudnn-cu12==9.10.2.21",
+    "nvidia-cufft-cu12==11.3.3.83",
+    "nvidia-cufile-cu12==1.13.1.3",
+    "nvidia-curand-cu12==10.3.9.90",
+    "nvidia-cusolver-cu12==11.7.3.90",
+    "nvidia-cusparse-cu12==12.5.8.93",
+    "nvidia-cusparselt-cu12==0.7.1",
+    "nvidia-nccl-cu12==2.27.3",
+    "nvidia-nvjitlink-cu12==12.8.93",
+    "nvidia-nvtx-cu12==12.8.90",
+    "packaging==26.3",
+    "pandas==3.0.5",
+    "peft==0.21.0",
+    "propcache==0.5.4",
+    "psutil==7.2.2",
+    "pyarrow==25.0.1",
+    "pydantic==2.13.5",
+    "pydantic_core==2.46.5",
+    "python-dateutil==2.9.0.post0",
+    "regex==2026.9.10",
+    "requests==2.34.2",
+    "rich==15.0.0",
+    "safetensors==0.8.0",
+    "scikit-learn==1.9.1",
+    "scipy==1.18.1",
+    "setuptools==84.0.0",
+    "shellingham==1.5.4",
+    "six==1.17.0",
+    "sympy==1.14.0",
+    "threadpoolctl==3.7.0",
+    "tokenizers==0.23.2",
+    "torch==2.8.0",
+    "tqdm==4.70.1",
+    "transformers==5.17.0",
+    "triton==3.4.0",
+    "typer==0.27.2",
+    "typing-inspection==0.4.4",
+    "typing_extensions==4.16.0",
+    "urllib3==2.8.0",
+    "xxhash==4.0.1",
+    "yarl==1.25.1"
+  ],
+  "runtime": {
+    "device": "cuda",
+    "torch": "2.8.0+cu128",
+    "torch_cuda_runtime": "12.8",
+    "transformers": "5.17.0",
+    "intraop_threads": 4,
+    "interop_threads": 1,
+    "dtype": "fp32",
+    "temperature": 2.3510958125672174,
+    "attention_setting": "attn=None; Transformers automatic attention selection",
+    "adapter_loading": "direct Checkpoint.load; LoRA merged into base (merge=True)",
+    "date_preprocessing": false,
+    "cross_request_prefix_cache": false,
+    "inference": "DecisionModel.probs after strict model.encode; no kev.serve.Server",
+    "resolved_attention": "sdpa",
+    "tokenizer_class": "Qwen2Tokenizer",
+    "tokenizer_name": "Qwen/Qwen3.5-0.8B-Base",
+    "hybrid_base": true
+  },
+  "baseline": {
+    "idle_lightweight_bridge_process_tree_rss_kib": 45804,
+    "benchmark_process_idle_rss_kib": 22732,
+    "rss_sampling_interval_ms": 50,
+    "budget_additional_kib": 6291456,
+    "budget_additional_gib": 6
+  },
+  "cold_load": {
+    "status": "complete",
+    "seconds": 5.011403828000766,
+    "adapter_merge": true,
+    "temperature": 2.3510958125672174
+  },
+  "warmups": {
+    "count": 3,
+    "inference_ms": [
+      506.1398329999065,
+      185.95295399427414,
+      187.61694600107148
+    ]
+  },
+  "workloads": {
+    "short": {
+      "count": 30,
+      "p95_inference_ms": 239.63423499662895,
+      "median_inference_ms": 188.0015079950681,
+      "max_inference_ms": 280.3138170056627,
+      "p95_prepare_ms": 1.9094789968221448,
+      "state_tokens": {
+        "min": 518,
+        "max": 520
+      },
+      "branch_tokens": {
+        "min": 50,
+        "max": 51
+      },
+      "max_packed_tokens": 571
+    },
+    "near_limit": {
+      "count": 20,
+      "p95_inference_ms": 1544.2080619977787,
+      "median_inference_ms": 1472.827119003341,
+      "max_inference_ms": 1553.8287040035357,
+      "p95_prepare_ms": 16.94342800328741,
+      "state_tokens": {
+        "min": 3980,
+        "max": 3982
+      },
+      "branch_tokens": {
+        "min": 924,
+        "max": 928
+      },
+      "max_packed_tokens": 4910
+    }
+  },
+  "result": {
+    "latency_pass": true,
+    "rss_pass_including_loading": true,
+    "phase1_pass": true
+  },
+  "gpu_memory": {
+    "name": "NVIDIA GeForce RTX 3070 Laptop GPU",
+    "compute_capability": "8.6",
+    "total_vram_bytes": 8220901376,
+    "free_vram_before_load_bytes": 8054374400,
+    "nvidia_smi_gpu": "NVIDIA GeForce RTX 3070 Laptop GPU, 580.178.04, 8192 MiB, 7682 MiB, GPU-4cb1156c-d832-1fd8-9f3e-3e85ac9edb46",
+    "nvidia_smi_processes_before_load": "711609, /tmp/kev-feasibility/source/.venv/bin/python, 138 MiB",
+    "free_vram_after_load_bytes": 4766040064,
+    "nvidia_smi_processes_after_load": "711609, /tmp/kev-feasibility/source/.venv/bin/python, 3274 MiB",
+    "load_peak_allocated_bytes": 3113633792,
+    "load_peak_reserved_bytes": 3254779904,
+    "inference_peak_allocated_bytes": 4566590464,
+    "inference_peak_reserved_bytes": 5012193280,
+    "overall_peak_allocated_bytes": 4566590464,
+    "overall_peak_reserved_bytes": 5012193280
+  },
+  "rss_during_load": {
+    "process_tree_peak_kib": 5501428,
+    "additional_over_idle_bridge_kib": 5455624
+  },
+  "rss_after_short": {
+    "process_tree_peak_kib": 5501428,
+    "additional_over_idle_bridge_kib": 5455624
+  },
+  "rss": {
+    "process_tree_peak_kib": 5501428,
+    "idle_bridge_process_tree_rss_kib": 45804,
+    "additional_peak_over_idle_bridge_kib": 5455624,
+    "sampling_interval_ms": 50
+  },
+  "benchmark_script": {
+    "path": "scripts/kev_feasibility.py",
+    "sha256": "b779aba1033d0d1fc632877236d04219851d64a03e15aebc006b360e90601b03"
+  }
+}

@@ -3,27 +3,52 @@
 const fs = require('node:fs');
 const { createRequire } = require('node:module');
 const appRequire = createRequire('/app/package.json');
-const args = process.argv.slice(2);
-function value(flag) {
+const DEFAULT_AGENT_ID = 'agent_product_knowledge_planner';
+
+function value(args, flag) {
   const index = args.indexOf(flag);
   if (index < 0 || !args[index + 1] || args[index + 1].startsWith('--')) throw new Error(`Missing ${flag}`);
   return args[index + 1];
 }
-async function main() {
-  const email = value('--email');
-  const manifestPath = value('--manifest');
+
+function optionalValue(args, flag) {
+  const indexes = args.reduce((found, arg, index) => arg === flag ? [...found, index] : found, []);
+  if (indexes.length > 1) throw new Error(`Use ${flag} only once`);
+  return indexes.length ? value(args, flag) : undefined;
+}
+
+function resolveAgentSelection(manifest, args, environment = process.env) {
+  const agentId = optionalValue(args, '--agent-id') || DEFAULT_AGENT_ID;
+  const explicitModel = optionalValue(args, '--model');
+  const configuredModels = (environment.OPENAI_MODELS || '').split(',').map(model => model.trim()).filter(Boolean);
+  const model = explicitModel || configuredModels[0] || manifest.model;
+  if (typeof agentId !== 'string' || !agentId.trim()) throw new Error('Agent ID must not be empty.');
+  if (typeof model !== 'string' || !model.trim()) throw new Error('Model must not be empty.');
+  return { agentId, manifest: { ...manifest, model } };
+}
+
+function assertAgentOwner(existing, userId) {
+  if (existing && String(existing.author) !== String(userId)) {
+    throw new Error('Agent ID belongs to another user; refusing to overwrite.');
+  }
+}
+
+async function main(args = process.argv.slice(2), environment = process.env) {
+  const email = value(args, '--email');
+  const manifestPath = value(args, '--manifest');
   const apply = args.includes('--apply');
   const { agentCreateSchema } = appRequire('@librechat/api');
   const { ResourceType, PrincipalType, AccessRoleIds } = appRequire('librechat-data-provider');
   const { load } = appRequire('js-yaml');
-  const manifest = agentCreateSchema.parse(JSON.parse(fs.readFileSync(manifestPath, 'utf8')));
-  const config = load(fs.readFileSync(process.env.CONFIG_PATH || '/app/librechat.yaml', 'utf8'));
+  const sourceManifest = agentCreateSchema.parse(JSON.parse(fs.readFileSync(manifestPath, 'utf8')));
+  const selection = resolveAgentSelection(sourceManifest, args, environment);
+  const manifest = agentCreateSchema.parse(selection.manifest);
+  const agentId = selection.agentId;
+  const config = load(fs.readFileSync(environment.CONFIG_PATH || '/app/librechat.yaml', 'utf8'));
   const serverNames = ['lightrag', 'jira', 'figma'];
   for (const name of serverNames) {
     if (!config.mcpServers?.[name]) throw new Error(`Configure the ${name} MCP server first.`);
   }
-  const configuredModels = (process.env.OPENAI_MODELS || '').split(',').map(s => s.trim()).filter(Boolean);
-  if (configuredModels.length) manifest.model = configuredModels[0];
   const mongoose = appRequire('mongoose');
   appRequire('@librechat/data-schemas').createModels(mongoose);
   try {
@@ -31,9 +56,8 @@ async function main() {
     const db = appRequire('./api/models');
     const user = await db.findUser({ email });
     if (!user) throw new Error('No existing LibreChat user matches the supplied email.');
-    const agentId = 'agent_product_knowledge_planner';
     const existing = await db.getAgent({ id: agentId });
-    if (existing && String(existing.author) !== String(user._id)) throw new Error('Agent ID belongs to another user; refusing to overwrite.');
+    assertAgentOwner(existing, user._id);
     if (!apply) {
       console.log(JSON.stringify({ mode: 'check', owner: user.email, agentId, model: manifest.model, tools: manifest.tools, existing: Boolean(existing) }));
       return;
@@ -55,4 +79,9 @@ async function main() {
     await mongoose.disconnect();
   }
 }
-main().then(() => process.exit(0)).catch(error => { console.error(error.message); process.exit(1); });
+
+if (require.main === module) {
+  main().then(() => process.exit(0)).catch(error => { console.error(error.message); process.exit(1); });
+}
+
+module.exports = { DEFAULT_AGENT_ID, resolveAgentSelection, assertAgentOwner };
