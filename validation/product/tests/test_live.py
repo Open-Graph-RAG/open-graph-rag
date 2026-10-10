@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 from validation.product.adapters.live import LiveAdapter, LiveRunError, bounded_post
+from validation.product.equivalence import validate_environment_equivalence
 
 
 class LiveTests(unittest.TestCase):
@@ -60,6 +61,45 @@ class LiveTests(unittest.TestCase):
 
     def adapter(self):
         return LiveAdapter(self.cfg, 'same prompt', True, self.transport)
+
+    def test_environment_equivalence_validator_checks_frozen_inputs_and_gates(self):
+        self.assertEqual(validate_environment_equivalence(self.attest,
+            self.root/'corpus.jsonl', self.cfg['live']['model'], self.cfg['live']['retrieval']), self.attest)
+
+        invalid = [
+            ({key: value for key, value in self.attest.items() if key != 'embedding_revision'}, 'missing required fields'),
+            ({**self.attest, 'corpus_sha256': 'not-a-sha256'}, 'corpus_sha256'),
+            ({**self.attest, 'shared_snapshot_sha256': 'not-a-sha256'}, 'shared_snapshot_sha256'),
+            ({**self.attest, 'model_revision': 'other-model'}, 'model revision'),
+            ({**self.attest, 'retrieval': {'mode': 'mix', 'top_k': 11}}, 'retrieval settings'),
+            ({**self.attest, 'corpus_sha256': '0' * 64}, 'corpus SHA-256'),
+            ({**self.attest, 'embedding_dimensions': True}, 'embedding_dimensions'),
+        ]
+        for attestation, message in invalid:
+            with self.subTest(message=message), self.assertRaisesRegex(ValueError, message):
+                validate_environment_equivalence(attestation, self.root/'corpus.jsonl',
+                    self.cfg['live']['model'], self.cfg['live']['retrieval'])
+
+        with self.assertRaisesRegex(ValueError, 'top_k'):
+            validate_environment_equivalence(self.attest, self.root/'corpus.jsonl',
+                self.cfg['live']['model'], {'mode': 'mix', 'top_k': True})
+        with self.assertRaisesRegex(ValueError, 'top_k'):
+            validate_environment_equivalence({**self.attest,
+                'retrieval': {'mode': 'mix', 'top_k': True}}, self.root/'corpus.jsonl',
+                self.cfg['live']['model'], {'mode': 'mix', 'top_k': 1})
+
+        for gate in ('only_candidate_projection', 'synthetic_or_authorized_sources',
+                     'baseline_preserved', 'retrieval_uses_only_local_models'):
+            with self.subTest(gate=gate), self.assertRaisesRegex(ValueError, 'gate'):
+                validate_environment_equivalence({**self.attest, gate: False},
+                    self.root/'corpus.jsonl', self.cfg['live']['model'], self.cfg['live']['retrieval'])
+
+    def test_environment_equivalence_errors_do_not_echo_attested_values(self):
+        secret_marker = 'DO_NOT_ECHO_ATTESTATION_VALUE'
+        with self.assertRaises(ValueError) as error:
+            validate_environment_equivalence({**self.attest, 'model_revision': secret_marker},
+                self.root/'corpus.jsonl', self.cfg['live']['model'], self.cfg['live']['retrieval'])
+        self.assertNotIn(secret_marker, str(error.exception))
 
     def test_real_retrieval_both_arms_identical_prompt_gold_not_sent(self):
         adapter = self.adapter()
