@@ -16,7 +16,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 import httpx
 from fastapi import FastAPI, Form, Request
@@ -220,6 +220,37 @@ def _safe_next(value: Any, default: str = "/") -> str:
     return value
 
 
+def _origin_tuple(value: str) -> tuple[str, str, int] | None:
+    """Return the normalized HTTP origin for a URL, or None if invalid."""
+    try:
+        parsed = urlsplit(value)
+        scheme = parsed.scheme.lower()
+        hostname = parsed.hostname
+        if (
+            scheme not in {"http", "https"}
+            or hostname is None
+            or parsed.username is not None
+            or parsed.password is not None
+        ):
+            return None
+        port = parsed.port
+    except ValueError:
+        return None
+    default_port = 443 if scheme == "https" else 80
+    return (scheme, hostname.lower(), port if port is not None else default_port)
+
+
+def _is_same_origin_request(request: Request) -> bool:
+    """Reject a supplied cross-origin Origin, or Referer when Origin is absent."""
+    if "origin" in request.headers:
+        supplied_url = request.headers["origin"]
+    elif "referer" in request.headers:
+        supplied_url = request.headers["referer"]
+    else:
+        return True
+    return _origin_tuple(supplied_url) == _origin_tuple(str(request.url))
+
+
 def _pagination_links(
     path: str, query_args: dict[str, str], page: int, total_pages: int
 ) -> dict[str, str | None]:
@@ -400,6 +431,8 @@ def create_app(
         workspace: str = Form(...),
         next: str = Form(default="/"),
     ):
+        if not _is_same_origin_request(request):
+            return JSONResponse({"detail": "Cross-origin request rejected"}, status_code=403)
         ok, error = auth.login(token, workspace)
         if not ok:
             return render(
@@ -434,6 +467,8 @@ def create_app(
 
     @app.post("/logout")
     async def logout(request: Request):
+        if not _is_same_origin_request(request):
+            return JSONResponse({"detail": "Cross-origin request rejected"}, status_code=403)
         response = RedirectResponse(url="/login", status_code=HTTP_303_SEE_OTHER)
         auth.clear_session(request, response)
         return response

@@ -350,6 +350,37 @@ class AuthTests(unittest.TestCase):
         self.assertIn(response.status_code, (302, 303))
         self.assertIn('ontology_session=""', response.headers.get("set-cookie", ""))
 
+    def test_login_post_with_same_origin_origin_header_succeeds(self) -> None:
+        response = self.client.post(
+            "/login",
+            data={"token": VALID_TOKEN, "workspace": VALID_WORKSPACE, "next": "/facts"},
+            headers={"Origin": "http://testserver"},
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/facts")
+        self.assertIn("ontology_session=", response.headers.get("set-cookie", ""))
+
+    def test_login_post_rejects_cross_origin_without_setting_cookie(self) -> None:
+        response = self.client.post(
+            "/login",
+            data={"token": VALID_TOKEN, "workspace": VALID_WORKSPACE, "next": "/facts"},
+            headers={"Origin": "https://attacker.example"},
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertNotIn("set-cookie", response.headers)
+
+    def test_login_post_rejects_cross_origin_referer_fallback(self) -> None:
+        response = self.client.post(
+            "/login",
+            data={"token": VALID_TOKEN, "workspace": VALID_WORKSPACE, "next": "/facts"},
+            headers={"Referer": "https://attacker.example/login"},
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertNotIn("set-cookie", response.headers)
+
     def test_login_post_with_too_short_token_rejected(self) -> None:
         response = self.client.post(
             "/login",
@@ -409,6 +440,17 @@ class AuthTests(unittest.TestCase):
         response = self.client.get("/", follow_redirects=False)
         self.assertIn(response.status_code, (302, 303))
         self.assertIn("/login", response.headers["location"])
+
+    def test_logout_rejects_cross_origin_and_preserves_session(self) -> None:
+        _login(self.client)
+        response = self.client.post(
+            "/logout",
+            headers={"Origin": "https://attacker.example"},
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 403)
+        dashboard = self.client.get("/", follow_redirects=False)
+        self.assertEqual(dashboard.status_code, 200)
 
 
 class FactsTests(unittest.TestCase):
