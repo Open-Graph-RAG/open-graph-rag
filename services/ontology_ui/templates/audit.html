@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Audit log — Ontology Console{% endblock %}
+
+{% set current_section = "audit" %}
+
+{% block content %}
+  <div class="page-header">
+    <h1>Audit log</h1>
+  </div>
+
+  {% if entries %}
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Sequence</th>
+            <th>Created at</th>
+            <th>Actor</th>
+            <th>Action</th>
+            <th>Subject</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in entries %}
+            <tr>
+              <td class="td-mono td-shrink">{{ entry.sequence }}</td>
+              <td class="td-mono td-shrink">{{ entry.created_at }}</td>
+              <td>{{ entry.actor or "—" }}</td>
+              <td>{{ entry.action or "—" }}</td>
+              <td class="td-mono">{{ entry.subject or "—" }}</td>
+              <td>
+                {% if entry.details %}
+                  <button type="button" class="details-toggle" aria-expanded="false" aria-controls="audit-details-{{ loop.index }}">Show details</button>
+                  <div class="details-content code-block" id="audit-details-{{ loop.index }}" style="padding:var(--space-2);font-size:var(--text-xs)">
+                    <pre><code>{{ entry.details | tojson(indent=2) }}</code></pre>
+                  </div>
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <script>
+      (function () {
+        document.querySelectorAll('.details-toggle').forEach(function (button) {
+          button.addEventListener('click', function () {
+            const target = document.getElementById(button.getAttribute('aria-controls'));
+            if (!target) return;
+            const open = target.classList.toggle('is-open');
+            button.setAttribute('aria-expanded', open ? 'true' : 'false');
+            button.textContent = open ? 'Hide details' : 'Show details';
+          });
+        });
+      })();
+    </script>
+  {% else %}
+    <div class="card card--padded empty-state">
+      <div class="empty-state__title">No audit entries</div>
+      <p>The audit log is empty.</p>
+    </div>
+  {% endif %}
+
+  {% if pagination is defined %}{% include "_partials/pagination.html" %}{% endif %}
+{% endblock %}

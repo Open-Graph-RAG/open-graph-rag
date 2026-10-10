@@ -382,6 +382,29 @@ The result should contain the demo evidence. A successful HTTP response with
 empty data does not prove indexing is complete. The internal MCP test does not
 verify tool selection in LibreChat: also complete the UI test.
 
+### Index this repository
+
+To make the repository searchable through `knowledge_search`, run:
+
+```bash
+python3 scripts/index_codebase.py --dry-run  # review the selected files
+python3 scripts/index_codebase.py
+docker compose exec mcp python smoke.py "How does knowledge_search connect LibreChat to LightRAG?"
+```
+
+The indexer reads `.env` for `LIGHTRAG_API_KEY` and defaults to
+`http://127.0.0.1:9621`. It indexes UTF-8 Python, JavaScript/TypeScript, JSON,
+Markdown, SQL, shell, TOML, and YAML files up to 256 KB. It skips sample data,
+build output, virtual environments, dependency lockfiles, `.env` files, and
+binary or undecodable files. Before indexing, it redacts credential-like
+assignments, private-key blocks, common provider tokens, and URL user/password
+components. If a prior run indexed an unredacted version of a changed file, the
+script removes the exact matching source version before submitting sanitized
+text. Each source ID includes the sanitized content's SHA-256, so unchanged
+reruns skip previously indexed files; edited files are added as a new version.
+The script waits for each submitted document to reach `PROCESSED` and prints
+the service's document status counts as ingestion evidence.
+
 If something does not work:
 
 | Symptom | Check |
@@ -521,3 +544,24 @@ imports and isolated tests. Starting those services does not switch traffic.
 This bundle contains configuration and the bridge; upstream projects retain
 their own licenses. Exposing it to the Internet requires a deployment with
 HTTPS, domains, and access controls configured for your environment.
+# Governed ontology management
+
+The optional [ontology overlay](compose.ontology.yaml) adds a PostgreSQL-backed
+ontology registry, deterministic fact validation, quarantine, transactional
+projection outbox, migrations with dry-run and rollback, and workspace-scoped
+reader/admin roles. It uses a dedicated `company_governed` LightRAG workspace.
+Its retrieval gateway blocks raw ingestion and graph mutation routes; submit
+extracted candidates through the ontology API instead. The base stack retains
+its existing ingestion workflows.
+
+See the [ontology runbook](docs/ontology/runbook.md),
+[specification](docs/ontology/specification.md), and
+[migration guide](docs/ontology/migration-guide.md) for setup and API examples.
+
+The `ontology-ui` service provides a read-only operations console at
+`http://127.0.0.1:${ONTOLOGY_UI_PORT:-8020}`. Sign in with the same
+bearer token and workspace name you would put in a `curl` request; the
+UI stores them in a signed session cookie and forwards them to the
+ontology API. All mutating operations remain on the API and `docker
+compose exec` workflows. Set `ONTOLOGY_UI_HTTPS_ONLY=1` when exposing
+the console behind TLS.

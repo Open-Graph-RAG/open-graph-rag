@@ -1,0 +1,28 @@
+{% set properties = properties if properties is defined else (entity.properties if entity is defined and entity.properties is defined else []) %}
+
+{% if properties %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th>Type</th>
+          <th>Required</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for prop in properties %}
+          <tr>
+            <td class="td-mono">{{ prop.name or prop.key or "—" }}</td>
+            <td class="td-mono">{{ prop.type or "—" }}</td>
+            <td>{% if prop.required %}Yes{% else %}No{% endif %}</td>
+            <td>{{ prop.description or "—" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="text-secondary text-sm">No properties defined.</p>
+{% endif %}

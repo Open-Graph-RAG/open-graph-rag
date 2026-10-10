@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Projection status — Ontology Console{% endblock %}
+
+{% set current_section = "projection" %}
+
+{% block content %}
+  <div class="page-header">
+    <h1>Projection status</h1>
+  </div>
+
+  {% if rows %}
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Outbox ID</th>
+            <th>Fact ID</th>
+            <th>Attempts</th>
+            <th>Available at</th>
+            <th>Leased until</th>
+            <th>Delivered at</th>
+            <th>Last error</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            {% set row_class = "is-pending" %}
+            {% if row.delivered_at %}
+              {% set row_class = "is-delivered" %}
+            {% elif row.last_error %}
+              {% set row_class = "is-failed" %}
+            {% endif %}
+            <tr class="{{ row_class }}">
+              <td class="td-mono">{{ row.id }}</td>
+              <td class="td-mono">{{ row.fact_id or "—" }}</td>
+              <td class="td-mono td-shrink">{{ row.attempts | default(0) }}</td>
+              <td class="td-mono td-shrink">{{ row.available_at or "—" }}</td>
+              <td class="td-mono td-shrink">{{ row.leased_until or "—" }}</td>
+              <td class="td-mono td-shrink">{{ row.delivered_at or "—" }}</td>
+              <td>
+                {% if row.last_error %}
+                  <span class="status-pill status-pill--failed">Failed</span>
+                  <p class="text-sm" style="margin-top:var(--space-1);color:var(--status-failed-text)">{{ row.last_error }}</p>
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="card card--padded empty-state">
+      <div class="empty-state__title">No projection rows</div>
+      <p>The outbox is empty.</p>
+    </div>
+  {% endif %}
+
+  {% if pagination is defined %}{% include "_partials/pagination.html" %}{% endif %}
+{% endblock %}

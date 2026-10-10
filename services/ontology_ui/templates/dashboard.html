@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Overview — Ontology Console{% endblock %}
+
+{% set current_section = "overview" %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <h1>Overview</h1>
+      <p class="page-header__subtitle">Workspace snapshot as of {{ now or "—" }}</p>
+    </div>
+    {% if health and health.status != "ok" %}
+      <a href="/" class="btn btn--sm">Retry</a>
+    {% endif %}
+  </div>
+
+  {% if health and health.status != "ok" %}
+    <div class="banner banner--warning" role="alert">
+      <div class="banner__title">Upstream health check failed</div>
+      <p>The ontology API is not reporting healthy. Data below may be stale. <a href="/">Retry</a></p>
+    </div>
+  {% endif %}
+
+  <div class="kpi-grid">
+    {% with value=ontology_count | default(0), label="Ontologies", href="/ontologies", link_text="View" %}{% include "_partials/kpi.html" %}{% endwith %}
+    {% with value=active_versions_count | default(0), label="Active versions", href="/ontologies", link_text="View" %}{% include "_partials/kpi.html" %}{% endwith %}
+    {% with value=fact_count | default(0), label="Facts", href="/facts", link_text="View" %}{% include "_partials/kpi.html" %}{% endwith %}
+    {% with value=outbox_pending | default(0), label="Outbox pending", href="/projection-status", link_text="View" %}{% include "_partials/kpi.html" %}{% endwith %}
+  </div>
+
+  <div class="panel-grid">
+    <section class="panel">
+      <div class="panel__header">
+        <h2 class="panel__title">Last projection status</h2>
+      </div>
+      <div class="panel__body">
+        <div class="kpi-grid" style="margin-bottom:0">
+          <article class="kpi-card">
+            <div class="kpi-card__value">{{ outbox_delivered | default(0) }}</div>
+            <div class="kpi-card__label">Delivered</div>
+          </article>
+          <article class="kpi-card">
+            <div class="kpi-card__value">{{ outbox_failed | default(0) }}</div>
+            <div class="kpi-card__label">Failed</div>
+          </article>
+          <article class="kpi-card">
+            <div class="kpi-card__value">{{ outbox_pending | default(0) }}</div>
+            <div class="kpi-card__label">Pending</div>
+          </article>
+        </div>
+      </div>
+      <div class="card__footer">
+        <a href="/projection-status">View projection status →</a>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__header">
+        <h2 class="panel__title">Recent audit</h2>
+      </div>
+      <div class="panel__body">
+        {% if recent_audit %}
+          <ul class="prop-list">
+            {% for entry in recent_audit %}
+              <li class="prop-list__item">
+                <div class="prop-list__name">{{ entry.action or "—" }} · {{ entry.subject or "—" }}</div>
+                <div class="prop-list__meta">
+                  <span class="mono">{{ entry.actor or "—" }}</span> at {{ entry.created_at or "—" }}
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-secondary text-sm">
+            Last audit entry: {{ last_audit_at or "—" }}
+          </p>
+        {% endif %}
+      </div>
+      <div class="card__footer">
+        <a href="/audit">View audit log →</a>
+      </div>
+    </section>
+  </div>
+{% endblock %}

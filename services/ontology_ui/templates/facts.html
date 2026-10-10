@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Facts — Ontology Console{% endblock %}
+
+{% set current_section = "facts" %}
+
+{% block content %}
+  <div class="page-header">
+    <h1>Facts</h1>
+  </div>
+
+  <form
+    class="filter-bar"
+    method="get"
+    action="/facts"
+    hx-get="/facts"
+    hx-target="#facts-table-region"
+    hx-push-url="true"
+    hx-indicator="#facts-loading"
+  >
+    <div class="form-group">
+      <label for="filter-kind" class="form-label">Kind</label>
+      <input id="filter-kind" name="kind" type="text" class="form-input" value="{{ filters.kind or '' }}" placeholder="Filter by kind">
+    </div>
+    <div class="form-group">
+      <label for="filter-ontology" class="form-label">Ontology ID</label>
+      <input id="filter-ontology" name="ontology_id" type="text" class="form-input" value="{{ filters.ontology_id or '' }}" placeholder="Filter by ontology">
+    </div>
+    <div class="form-group">
+      <label for="filter-predicate" class="form-label">Predicate</label>
+      <input id="filter-predicate" name="predicate" type="text" class="form-input" value="{{ filters.predicate or '' }}" placeholder="Filter by predicate">
+    </div>
+    <div class="form-group">
+      <label for="filter-q" class="form-label">Search</label>
+      <input id="filter-q" name="q" type="text" class="form-input" value="{{ filters.q or '' }}" placeholder="Free-text search">
+    </div>
+    <div class="filter-bar__actions">
+      <button type="submit" class="btn btn--primary">Filter</button>
+      <a href="/facts" class="btn btn--ghost">Clear filters</a>
+    </div>
+  </form>
+
+  <div id="facts-loading" class="text-secondary text-sm" style="display:none">Loading…</div>
+
+  <div id="facts-table-region">
+    {% include "_partials/facts_fragment.html" %}
+  </div>
+{% endblock %}

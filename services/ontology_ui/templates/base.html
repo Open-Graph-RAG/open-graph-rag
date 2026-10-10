@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="system">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Ontology Console{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/htmx.min.js"></script>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <div class="app-shell">
+    <header class="top-bar">
+      <a href="/" class="top-bar__brand">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+        </svg>
+        Ontology Console
+      </a>
+      <div class="top-bar__meta">
+        {% if workspace %}
+          <span class="workspace-badge">
+            <span class="workspace-badge__label">Workspace:</span>
+            <span class="workspace-badge__value">{{ workspace }}</span>
+          </span>
+        {% endif %}
+        {% if token_handle %}
+          <span class="token-handle" title="Token handle (last 4 characters)">
+            <span class="token-handle__label">Token</span>
+            <span class="token-handle__value">••••{{ token_handle }}</span>
+          </span>
+        {% endif %}
+        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle light and dark theme">
+          <span aria-hidden="true">◐</span>
+        </button>
+        {% if request.session.get("token") %}
+          <form method="post" action="/logout" style="display:inline">
+            <button type="submit" class="btn btn--danger btn--sm">Logout</button>
+          </form>
+        {% endif %}
+      </div>
+    </header>
+
+    <div class="main-layout">
+      <nav class="side-nav" aria-label="Main navigation">
+        <ul class="side-nav__list">
+          {% set nav_items = [
+            ("Overview", "/", "overview"),
+            ("Ontologies", "/ontologies", "ontologies"),
+            ("Facts", "/facts", "facts"),
+            ("Quarantine", "/quarantine", "quarantine"),
+            ("Projection", "/projection-status", "projection"),
+            ("Audit", "/audit", "audit")
+          ] %}
+          {% for label, href, section in nav_items %}
+            <li>
+              <a href="{{ href }}" class="side-nav__link{% if current_section == section %} is-active{% endif %}" {% if current_section == section %}aria-current="page"{% endif %}>
+                {{ label }}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </nav>
+
+      <main class="main-content" id="main-content">
+        {% block messages %}
+          {% include "_partials/error_banner.html" %}
+        {% endblock %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const root = document.documentElement;
+      const toggle = document.getElementById('theme-toggle');
+      const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+
+      function apply(theme) {
+        if (theme === 'system' || !theme) {
+          root.removeAttribute('data-theme');
+        } else {
+          root.setAttribute('data-theme', theme);
+        }
+        try { localStorage.setItem('ontology-ui-theme', theme || 'system'); } catch (_) {}
+      }
+
+      let theme = 'system';
+      try { theme = localStorage.getItem('ontology-ui-theme') || 'system'; } catch (_) {}
+      apply(theme);
+
+      if (toggle) {
+        toggle.addEventListener('click', function () {
+          const current = root.getAttribute('data-theme') || 'system';
+          const prefersDark = systemDark.matches;
+          let next = 'light';
+          if (current === 'light') next = 'dark';
+          else if (current === 'dark') next = 'system';
+          else next = prefersDark ? 'light' : 'dark';
+          apply(next);
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

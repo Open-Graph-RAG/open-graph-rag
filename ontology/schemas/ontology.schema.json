@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-graph-rag.local/schemas/ontology.schema.json",
+  "title": "Open Graph RAG ontology definition",
+  "type": "object",
+  "required": ["id", "version", "status", "entities", "relations"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$"},
+    "version": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-((?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\\+([0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?$"},
+    "status": {"enum": ["draft", "published"]},
+    "entities": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[A-Z][A-Za-z0-9]{0,62}$"},
+      "additionalProperties": {"$ref": "#/$defs/entity"}
+    },
+    "relations": {
+      "type": "object",
+      "propertyNames": {"pattern": "^[A-Z][A-Z0-9_]{0,62}$"},
+      "additionalProperties": {"$ref": "#/$defs/relation"}
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "unknown_entity_type": {"enum": ["quarantine", "reject"]},
+        "unknown_relation_type": {"enum": ["quarantine", "reject"]},
+        "missing_required_property": {"enum": ["quarantine", "reject"]}
+      }
+    }
+  },
+  "$defs": {
+    "property": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"enum": ["string", "integer", "number", "boolean", "object", "array"]},
+        "required": {"type": "boolean"},
+        "description": {"type": "string"},
+        "enum": {"type": "array", "minItems": 1},
+        "items": {"$ref": "#/$defs/property"},
+        "properties": {"type": "object", "additionalProperties": {"$ref": "#/$defs/property"}},
+        "additionalProperties": {"type": "boolean"},
+        "minLength": {"type": "integer", "minimum": 0},
+        "maxLength": {"type": "integer", "minimum": 0},
+        "minimum": {"type": "number"},
+        "maximum": {"type": "number"}
+      }
+    },
+    "entity": {
+      "type": "object",
+      "required": ["description", "properties"],
+      "additionalProperties": false,
+      "properties": {
+        "description": {"type": "string"},
+        "properties": {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/$defs/property"}
+        }
+      }
+    },
+    "relation": {
+      "type": "object",
+      "required": ["source", "target", "directed"],
+      "additionalProperties": false,
+      "properties": {
+        "description": {"type": "string"},
+        "source": {"oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true}]},
+        "target": {"oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true}]},
+        "directed": {"type": "boolean"},
+        "constraints": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "allow_self_reference": {"type": "boolean"},
+            "source_max": {"type": "integer", "minimum": 1},
+            "target_max": {"type": "integer", "minimum": 1}
+          }
+        }
+      }
+    }
+  }
+}

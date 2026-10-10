@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Quarantine — Ontology Console{% endblock %}
+
+{% set current_section = "quarantine" %}
+
+{% block content %}
+  <div class="page-header">
+    <h1>Quarantine</h1>
+  </div>
+
+  {% if items %}
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Ontology</th>
+            <th>Mode</th>
+            <th>Errors</th>
+            <th>Record</th>
+            <th>Created by</th>
+            <th>Created at</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+            <tr>
+              <td class="td-mono">{{ item.id }}</td>
+              <td class="td-mono">{{ item.ontology_id or "—" }}</td>
+              <td>{{ item.mode or "—" }}</td>
+              <td>
+                {% if item.errors %}
+                  <pre class="code-block" style="padding:var(--space-2);font-size:var(--text-xs)"><code>{{ item.errors | tojson(indent=2) }}</code></pre>
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td>
+                {% if item.record %}
+                  <button type="button" class="details-toggle" aria-expanded="false" aria-controls="record-{{ loop.index }}">Show record</button>
+                  <div class="details-content code-block" id="record-{{ loop.index }}" style="padding:var(--space-2);font-size:var(--text-xs)">
+                    <pre><code>{{ item.record | tojson(indent=2) }}</code></pre>
+                  </div>
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td>{{ item.created_by or "—" }}</td>
+              <td class="td-mono td-shrink">{{ item.created_at or "—" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <script>
+      (function () {
+        document.querySelectorAll('.details-toggle').forEach(function (button) {
+          button.addEventListener('click', function () {
+            const target = document.getElementById(button.getAttribute('aria-controls'));
+            if (!target) return;
+            const open = target.classList.toggle('is-open');
+            button.setAttribute('aria-expanded', open ? 'true' : 'false');
+            button.textContent = open ? 'Hide record' : 'Show record';
+          });
+        });
+      })();
+    </script>
+  {% else %}
+    <div class="card card--padded empty-state">
+      <div class="empty-state__title">No quarantined items</div>
+      <p>Nothing is in quarantine right now.</p>
+    </div>
+  {% endif %}
+
+  {% if pagination is defined %}{% include "_partials/pagination.html" %}{% endif %}
+{% endblock %}

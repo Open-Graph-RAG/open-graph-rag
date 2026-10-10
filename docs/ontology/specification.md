@@ -1,0 +1,21 @@
+# Ontology and canonical fact contract
+
+The ontology service owns versioned semantic definitions and accepted facts. LightRAG remains a retrieval index. The PostgreSQL canonical store is the authority for fact direction, ontology version, workspace, properties and provenance.
+
+An ontology definition has an immutable `id` and SemVer `version`, a `status` (`draft` or `published`), named `entities`, named `relations`, and validation policy. Published versions are immutable. Entity property declarations use JSON Schema-compatible types and `required`; relation declarations name permitted source and target entity types and set `directed: true` where order has domain meaning. A minimal example is in the authoring guide.
+
+An accepted relation fact is normalized as `{id, kind: "relation", ontology_id, ontology_version, workspace, predicate, subject_id, object_id, directed, properties, provenance}`. The store derives `directed` from the ontology. Every provenance entry requires both `document_id` and `source_id`; optional fields include extraction version and confidence. API clients supply stable fact IDs, workspace and ontology version explicitly. The store records acceptance status and creation time. Entity facts carry `id`, `kind: "entity"`, `ontology_id`, `ontology_version`, `workspace`, `entity_type`, `properties` and provenance.
+
+The registry tracks an active version for each ontology and workspace. First publication activates it; subsequent publications remain available until migration activates a target version. Canonical writes require the active version. Apply and rollback switch that version atomically with facts. The projector leases only its configured workspace, preserving isolation even when multiple registries share the database.
+
+The service API is rooted at `/v1`. It supports ontology list/get/create, versions, schema validation and publish; fact validation and canonical fact creation; migration planning/apply; and audit reads. Fact creation validates against one published ontology version and commits the canonical record and projection outbox entry in one PostgreSQL transaction. Invalid facts are rejected with machine-readable validation issues. Migration apply, publishing and fact mutation require the configured admin access policy; read and validation endpoints use the reader policy. This repository's API implementation and request schemas are the executable contract; this document describes the model rather than claiming RDF or OWL support.
+
+## LightRAG v1.5.7 projection contract
+
+The pinned image source was inspected from digest `sha256:5bdbd524931b011df246fe20888d110cef691e6804c12cde636a2b746d7de27e`. Its graph routes define `POST /graph/entity/create` with `{entity_name, entity_data}` and `POST /graph/relation/create` with `{source_entity, target_entity, relation_data}`. Relation creation explicitly documents the stored edge as undirected. `GET /graphs?label=...&max_depth=...&max_nodes=...` retrieves a graph. Query routes include `POST /query/data` and `POST /query`.
+
+The projector derives stable node labels from SHA-256 of workspace, node kind and canonical key. It writes each relation as a dedicated `ONTOLOGY_FACT` node and two graph edges: subject to fact and fact to object. Edge role labels and the fact node's predicate preserve direction even though LightRAG's graph edge is undirected. IDs include workspace scope, and the projection stores ontology ID/version, canonical fact ID and provenance. The gateway exposes only retrieval routes and health; it rejects all other paths and methods. The trusted ontology projector reaches LightRAG on the private backend network with the server API key.
+
+## Limits
+
+LightRAG's document ingestion and LLM extraction are not ontology-governed. Extraction profiles generated from a published ontology can guide prompts where configured, but do not validate extracted candidates and are not an upstream extraction hook. Raw documents ingested through an uncontrolled path may create ordinary LightRAG graph content. Governed claims are those accepted as canonical facts and projected by the ontology outbox worker. In governed deployment mode, external clients use the retrieval gateway, while raw ingestion and graph mutation are blocked from those clients. This boundary does not retroactively govern prior graph content.
