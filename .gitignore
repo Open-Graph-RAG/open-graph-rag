@@ -2,5 +2,7 @@
 __pycache__/
 *.pyc
 backups/
+.backup-state/
+backup/private/
 .venv/
 .venv-kev/

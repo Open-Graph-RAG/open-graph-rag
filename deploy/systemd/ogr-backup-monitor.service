@@ -1,0 +1,16 @@
+[Unit]
+Description=Check Open Graph RAG backup freshness
+OnFailure=ogr-backup-alert@%n.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/opt/open-graph-rag
+Environment=BACKUP_CONFIG=/etc/open-graph-rag/backup.env
+ExecStart=/opt/open-graph-rag/scripts/backup/monitor.sh
+UMask=0077
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/open-graph-rag/.backup-state

@@ -1,0 +1,11 @@
+[Unit]
+Description=Hourly Open Graph RAG backup freshness check
+
+[Timer]
+OnBootSec=10m
+OnUnitActiveSec=1h
+Persistent=true
+Unit=ogr-backup-monitor.service
+
+[Install]
+WantedBy=timers.target

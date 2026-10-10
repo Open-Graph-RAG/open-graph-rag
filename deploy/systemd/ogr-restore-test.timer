@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly Open Graph RAG recovery verification schedule
+
+[Timer]
+OnCalendar=Sun *-*-* 04:15:00
+RandomizedDelaySec=15m
+Persistent=true
+Unit=ogr-restore-test.service
+
+[Install]
+WantedBy=timers.target

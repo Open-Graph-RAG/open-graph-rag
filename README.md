@@ -422,17 +422,18 @@ If something does not work:
 `docker compose down` stops the stack and keeps the volumes. Do not add `-v` if
 you want to keep the data: it deletes the project volumes.
 
-For a complete backup, safely retain `.env`, the configuration files, and all
-volumes listed in `compose.yaml`. For database dumps consistent with the files,
-stop the applications first:
+Use the encrypted backup subsystem for scheduled backups and recovery checks.
+It captures database-aware dumps, application volumes, and configuration, then
+verifies both local and offsite Restic snapshots. See the
+[backup policy](docs/operations/backup-policy.md),
+[restore runbook](docs/operations/restore-runbook.md), and
+[disaster recovery guide](docs/operations/disaster-recovery.md). Configure the
+backup host using [backup/README.md](backup/README.md); keep the Restic password
+and application secrets in independent protected storage.
 
 ```bash
-mkdir -p backups
-docker compose stop librechat mcp lightrag n8n
-docker compose exec -T postgres pg_dump -U lightrag -d lightrag -Fc > backups/lightrag.dump
-docker compose exec -T mongodb sh -c 'mongodump --username "$MONGO_INITDB_ROOT_USERNAME" --password "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --archive --gzip' > backups/librechat.archive.gz
-# Also save the file volumes with your Docker backup system.
-docker compose start lightrag mcp librechat n8n
+BACKUP_CONFIG=/etc/open-graph-rag/backup.env ./scripts/backup/backup.sh
+BACKUP_CONFIG=/etc/open-graph-rag/backup.env ./scripts/backup/restore.sh --snapshot latest --target isolated --cleanup
 ```
 
 ## UI branding
