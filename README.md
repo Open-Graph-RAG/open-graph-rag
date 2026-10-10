@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/logo.png" alt="Open Graph RAG logo: a chat bubble surrounding a document and connected knowledge graph" width="240">
+  <img src="docs/assets/hero-banner.svg" alt="Open Graph RAG — graph-powered, evidence-grounded answers from your documents" width="100%">
 </p>
 
 # Open Graph RAG

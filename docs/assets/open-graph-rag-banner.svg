@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="500" viewBox="0 0 1440 500" role="img" aria-labelledby="title desc">
+  <title id="title">Open Graph RAG — Knowledge, connected</title>
+  <desc id="desc">Marketing banner for Open Graph RAG featuring its current teal-to-purple open G logo and a flow from documents through graph-and-vector retrieval to cited answers.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071426"/>
+      <stop offset="0.56" stop-color="#0C1E38"/>
+      <stop offset="1" stop-color="#0B1630"/>
+    </linearGradient>
+    <radialGradient id="aura" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1134 244) rotate(90) scale(405 527)">
+      <stop stop-color="#194A73" stop-opacity=".72"/>
+      <stop offset=".6" stop-color="#1F3766" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#142341" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="leftGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(70 22) rotate(43) scale(460 480)">
+      <stop stop-color="#22506E" stop-opacity=".25"/>
+      <stop offset="1" stop-color="#22506E" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="accent" x1="80" y1="0" x2="660" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7CF5DC"/><stop offset=".6" stop-color="#73D6FB"/><stop offset="1" stop-color="#A9A3FF"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="826" y1="88" x2="1374" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#142F4D" stop-opacity=".93"/><stop offset="1" stop-color="#0F1D39" stop-opacity=".95"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#7BF4D8"/><stop offset="1" stop-color="#7F9DFF"/>
+    </linearGradient>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+    <pattern id="grid" width="38" height="38" patternUnits="userSpaceOnUse">
+      <path d="M38 0H0V38" fill="none" stroke="#8CC8ED" stroke-opacity=".055" stroke-width="1"/>
+    </pattern>
+    <filter id="shadow" x="-30%" y="-40%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#010713" flood-opacity=".36"/>
+    </filter>
+
+    <!-- Unmodified drawing geometry of the current repository logo. -->
+    <linearGradient id="brand-ring" x1="176" y1="176" x2="848" y2="848" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#14E6D2"/>
+      <stop offset="0.48" stop-color="#2CB7F6"/>
+      <stop offset="1" stop-color="#7257FF"/>
+    </linearGradient>
+    <linearGradient id="brand-edge" x1="500" y1="330" x2="850" y2="720" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#42E6D3"/>
+      <stop offset="1" stop-color="#745BFF"/>
+    </linearGradient>
+    <filter id="brand-soft-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="16" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <symbol id="brand-mark" viewBox="0 0 1024 1024">
+      <circle cx="512" cy="512" r="330" stroke="url(#brand-ring)" stroke-width="92" stroke-linecap="round" stroke-dasharray="1690 430" transform="rotate(-39 512 512)" fill="none"/>
+      <path d="M545 512 H785" stroke="url(#brand-edge)" stroke-width="52" stroke-linecap="round" fill="none"/>
+      <path d="M585 512 L760 340" stroke="url(#brand-edge)" stroke-width="42" stroke-linecap="round" fill="none"/>
+      <path d="M585 512 L760 684" stroke="url(#brand-edge)" stroke-width="42" stroke-linecap="round" fill="none"/>
+      <circle cx="545" cy="512" r="72" fill="#18D9D0" filter="url(#brand-soft-glow)"/>
+      <circle cx="785" cy="512" r="58" fill="#506AF7"/>
+      <circle cx="760" cy="340" r="52" fill="#695BFF"/>
+      <circle cx="760" cy="684" r="52" fill="#695BFF"/>
+      <circle cx="545" cy="512" r="22" fill="white" fill-opacity="0.92"/>
+    </symbol>
+  </defs>
+
+  <rect width="1440" height="500" rx="26" fill="url(#background)"/>
+  <rect width="1440" height="500" rx="26" fill="url(#aura)"/>
+  <rect width="1440" height="500" rx="26" fill="url(#leftGlow)"/>
+  <rect x="4" y="4" width="1432" height="492" rx="23" fill="none" stroke="#8DB9E9" stroke-opacity=".13" stroke-width="1.5"/>
+  <rect width="1440" height="500" rx="26" fill="url(#grid)"/>
+  <path d="M-85 438C211 322 414 513 725 371C1012 241 1154 416 1492 242" fill="none" stroke="#3BB3C6" stroke-width="1.5" opacity=".08"/>
+  <path d="M-30 472C246 342 447 546 762 405C1066 267 1210 447 1482 292" fill="none" stroke="#9C82FF" stroke-width="1.5" opacity=".10"/>
+
+  <!-- Brand and positioning: original repository logo plus wordmark -->
+  <rect x="78" y="64" width="251" height="36" rx="18" fill="#16435B" fill-opacity=".65" stroke="#67E9D9" stroke-opacity=".30"/>
+  <circle cx="100" cy="82" r="5" fill="#78F3CF"/>
+  <text x="116" y="87" fill="#B6F6EB" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="14" font-weight="700" letter-spacing="1.5">OPEN SOURCE RAG STACK</text>
+
+  <rect x="77" y="122" width="84" height="84" rx="23" fill="#112D49" stroke="#63C8DE" stroke-opacity=".18"/>
+  <use href="#brand-mark" x="65" y="109" width="110" height="110"/>
+  <text x="173" y="185" fill="#FFFFFF" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="59" font-weight="760" letter-spacing="-3">Open Graph RAG</text>
+  <text x="78" y="239" fill="url(#accent)" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="39" font-weight="700" letter-spacing="-1.3">Knowledge, connected.</text>
+  <text x="80" y="287" fill="#C3D3E5" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="21">From documents to grounded AI answers—</text>
+  <text x="80" y="317" fill="#C3D3E5" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="21">with retrieval and evidence you can inspect.</text>
+
+  <!-- Technology pills -->
+  <g font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="15" font-weight="650">
+    <rect x="78" y="358" width="124" height="41" rx="13" fill="#1D3754" stroke="#6E8BAC" stroke-opacity=".34"/>
+    <circle cx="97" cy="379" r="4" fill="#8EE1FF"/><text x="108" y="384" fill="#E5F0FF">LibreChat</text>
+    <rect x="213" y="358" width="124" height="41" rx="13" fill="#1D3754" stroke="#6E8BAC" stroke-opacity=".34"/>
+    <circle cx="232" cy="379" r="4" fill="#80F1CD"/><text x="243" y="384" fill="#E5F0FF">LightRAG</text>
+    <rect x="348" y="358" width="87" height="41" rx="13" fill="#1D3754" stroke="#6E8BAC" stroke-opacity=".34"/>
+    <circle cx="367" cy="379" r="4" fill="#B5A4FF"/><text x="378" y="384" fill="#E5F0FF">MCP</text>
+    <rect x="446" y="358" width="74" height="41" rx="13" fill="#1D3754" stroke="#6E8BAC" stroke-opacity=".34"/>
+    <circle cx="465" cy="379" r="4" fill="#FF9ABB"/><text x="476" y="384" fill="#E5F0FF">n8n</text>
+    <rect x="531" y="358" width="131" height="41" rx="13" fill="#1D3754" stroke="#6E8BAC" stroke-opacity=".34"/>
+    <circle cx="550" cy="379" r="4" fill="#7DBCF9"/><text x="561" y="384" fill="#E5F0FF">PostgreSQL</text>
+  </g>
+  <text x="80" y="451" fill="#8DA6C4" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="12" font-weight="700" letter-spacing="2.7">COMPOSABLE KNOWLEDGE INFRASTRUCTURE</text>
+
+  <!-- Knowledge-flow panel -->
+  <rect x="785" y="67" width="585" height="365" rx="27" fill="url(#panel)" stroke="#7CA8DC" stroke-opacity=".29" stroke-width="1.5" filter="url(#shadow)"/>
+  <path d="M786 131H1369" stroke="#86A6CC" stroke-opacity=".20"/>
+  <circle cx="816" cy="100" r="5" fill="#86F3D7"/><circle cx="833" cy="100" r="5" fill="#739EE0"/><circle cx="850" cy="100" r="5" fill="#5F789F"/>
+  <text x="880" y="105" fill="#B1C6E1" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="13" font-weight="700" letter-spacing="2">KNOWLEDGE FLOW</text>
+  <path d="M1298 101h16m-8-8v16" stroke="#82E7D6" opacity=".75" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Document card -->
+  <rect x="813" y="157" width="142" height="198" rx="19" fill="#142B46" stroke="#6388AC" stroke-opacity=".65"/>
+  <text x="834" y="183" fill="#9BBBD5" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="11" font-weight="750" letter-spacing="1.8">DOCUMENTS</text>
+  <rect x="846" y="204" width="78" height="100" rx="8" fill="#1D4864" stroke="#86C5E1" stroke-opacity=".65"/>
+  <path d="M902 204v22h22" fill="none" stroke="#8DCFE6" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M860 245h48m-48 13h44m-44 13h32m-32 13h41" stroke="#89C3DB" stroke-width="3.5" stroke-linecap="round" opacity=".75"/>
+  <circle cx="916" cy="316" r="11" fill="#6EE9C7"/><path d="m911 316 4 4 7-8" fill="none" stroke="#0D3442" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="884" y="339" text-anchor="middle" fill="#BDD3E7" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="12" font-weight="600">Index sources</text>
+
+  <!-- The graph-retrieval stage carries the exact current Open Graph RAG mark. -->
+  <path d="M955 250H994" stroke="#61DFC9" stroke-opacity=".26" stroke-width="10" filter="url(#glow)"/>
+  <path d="M955 250H997" fill="none" stroke="#71EBD1" stroke-width="2.5" stroke-dasharray="5 6"/>
+  <path d="m991 244 9 6-9 6" fill="none" stroke="#83F5DA" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M1160 250H1199" stroke="#869DFE" stroke-opacity=".26" stroke-width="10" filter="url(#glow)"/>
+  <path d="M1157 250H1199" fill="none" stroke="#92A8FF" stroke-width="2.5" stroke-dasharray="5 6"/>
+  <path d="m1192 244 9 6-9 6" fill="none" stroke="#B4B7FF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="1075" cy="256" r="85" fill="#21446A" fill-opacity=".28" stroke="#5E80B7" stroke-opacity=".24" stroke-width="1.5"/>
+  <circle cx="1075" cy="256" r="67" fill="#266A8F" fill-opacity=".11"/>
+  <use href="#brand-mark" x="971" y="152" width="208" height="208"/>
+  <text x="1075" y="347" text-anchor="middle" fill="#B8D8EB" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="12" font-weight="650">Graph + vectors</text>
+
+  <!-- Answer card -->
+  <rect x="1202" y="157" width="141" height="198" rx="19" fill="#192C4A" stroke="#6F90BE" stroke-opacity=".70"/>
+  <text x="1223" y="183" fill="#9BBBD5" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="11" font-weight="750" letter-spacing="1.8">ANSWER</text>
+  <path d="M1233 211h66a10 10 0 0 1 10 10v57a10 10 0 0 1-10 10h-34l-16 15v-15h-16a10 10 0 0 1-10-10v-57a10 10 0 0 1 10-10Z" fill="#254B68" stroke="#8CC8ED" stroke-opacity=".70" stroke-width="1.5"/>
+  <path d="M1240 234h51m-51 13h43m-43 13h29" fill="none" stroke="#B0E0F1" stroke-width="3.2" stroke-linecap="round" opacity=".85"/>
+  <circle cx="1297" cy="281" r="17" fill="#74EBD0" stroke="#153A4A" stroke-width="4"/>
+  <path d="m1289 281 6 6 11-12" fill="none" stroke="#123F48" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="1273" y="339" text-anchor="middle" fill="#BDD3E7" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="12" font-weight="600">Cited results</text>
+
+  <!-- Panel footer accent -->
+  <path d="M821 394h511" stroke="#8DA7C4" stroke-opacity=".22"/>
+  <circle cx="839" cy="412" r="4" fill="#7CF0D1"/>
+  <text x="853" y="416" fill="#8FB6CF" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="12" font-weight="650" letter-spacing=".3">Search your sources · Inspect the evidence</text>
+</svg>
