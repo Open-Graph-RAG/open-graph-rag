@@ -8,6 +8,7 @@
   },
   "prompt": "prompt.txt",
   "ontology": "../../ontology/definitions/ogr-core/1.0.0.yaml",
+  "environment_recipe": "environments/compose.validation.yaml",
   "manifest": "frozen-manifest.json",
   "runs_dir": ".runs",
   "arms": [

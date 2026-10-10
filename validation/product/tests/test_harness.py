@@ -1,5 +1,5 @@
 from __future__ import annotations
-import json, os, stat, tempfile, unittest
+import hashlib, json, os, stat, tempfile, unittest
 from pathlib import Path
 from unittest.mock import patch
 from validation.product.adapters.fixture import FixtureAdapter
@@ -7,7 +7,7 @@ from validation.product.adapters.http_readonly import HttpAdapter
 from validation.product.environments.prepare import prepare_snapshot
 from validation.product.scoring.score import score_rows
 from validation.product.scoring.aggregate import aggregate
-from validation.product.cli import _atomic_private_write, _private_directory, _validate_case_population
+from validation.product.cli import _atomic_private_write, _private_directory, _validate_case_population, preflight, DEFAULT_CONFIG
 
 class HarnessTests(unittest.TestCase):
     def test_frozen_case_counts_categories_and_scenario_separation(self):
@@ -21,6 +21,21 @@ class HarnessTests(unittest.TestCase):
             _validate_case_population(dev,[{**held[0],"category":"unbalanced"},*held[1:]])
         with self.assertRaisesRegex(ValueError,"scenarios"):
             _validate_case_population(dev,[{**case,"scenario_id":"held-one"} for case in held])
+
+    def test_preflight_manifest_pins_compose_recipe_and_rejects_drift(self):
+        cfg=json.loads(DEFAULT_CONFIG.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as td:
+            manifest=Path(td)/"manifest.json"
+            result=preflight(cfg,DEFAULT_CONFIG,manifest,freeze=True)
+            key="environment_recipe"
+            self.assertIn(key,result["hashes"])
+            recipe=(DEFAULT_CONFIG.parent/cfg["environment_recipe"]).resolve()
+            self.assertEqual(result["hashes"][key],hashlib.sha256(recipe.read_bytes()).hexdigest())
+            frozen=json.loads(manifest.read_text(encoding="utf-8"))
+            frozen["sha256"][key]="0"*64
+            manifest.write_text(json.dumps(frozen),encoding="utf-8")
+            with self.assertRaisesRegex(ValueError,key):
+                preflight(cfg,DEFAULT_CONFIG,manifest)
 
     def test_fixture_ignores_gold_and_marks_non_lightrag(self):
         with tempfile.TemporaryDirectory() as td:

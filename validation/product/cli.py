@@ -53,6 +53,8 @@ def _paths(cfg: dict[str,Any], config_path: Path):
     base=config_path.resolve().parent
     data={k:(base/v).resolve() for k,v in cfg["dataset"].items()}
     paths={"config.yaml":config_path.resolve(), **data,"prompt":(base/cfg["prompt"]).resolve(),"ontology":(base/cfg["ontology"]).resolve()}
+    if cfg.get("environment_recipe"):
+        paths["environment_recipe"]=(base/cfg["environment_recipe"]).resolve()
     live=cfg.get("live",{})
     if isinstance(live,dict) and live.get("equivalence_manifest"):
         paths["environment_equivalence"]=(base/live["equivalence_manifest"]).resolve()
