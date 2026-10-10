@@ -110,4 +110,4 @@ jobs:
         if: always()
         run: >-
           docker compose -p ontology-ci -f compose.yaml -f compose.ontology.yaml
-          -f tests/ontology/compose.e2e.yaml down -v
+          -f tests/ontology/compose.e2e.yaml down --timeout 1 -v
