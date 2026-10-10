@@ -86,17 +86,37 @@ jobs:
   ontology-lightrag-e2e:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      LIGHTRAG_IMAGE: ghcr.io/hkuds/lightrag:v1.5.7@sha256:5bdbd524931b011df246fe20888d110cef691e6804c12cde636a2b746d7de27e
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
+      - name: Restore pinned LightRAG image cache
+        id: lightrag-image-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: /tmp/lightrag-image.tar
+          key: lightrag-linux-amd64-5bdbd524931b011df246fe20888d110cef691e6804c12cde636a2b746d7de27e
+      - name: Load cached pinned LightRAG image
+        if: steps.lightrag-image-cache.outputs.cache-hit == 'true'
+        run: docker image load --input /tmp/lightrag-image.tar
       - run: python scripts/init_env.py
       - name: Start disposable governed stack with local provider mocks
         run: >-
           docker compose -p ontology-ci -f compose.yaml -f compose.ontology.yaml
           -f tests/ontology/compose.e2e.yaml up -d --build --wait --wait-timeout 300
           postgres mock-provider lightrag ontology ontology-projector ontology-gateway
+      - name: Archive pinned LightRAG image for cache
+        if: steps.lightrag-image-cache.outputs.cache-hit != 'true'
+        run: docker image save --output /tmp/lightrag-image.tar "$LIGHTRAG_IMAGE"
+      - name: Save pinned LightRAG image cache
+        if: steps.lightrag-image-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: /tmp/lightrag-image.tar
+          key: ${{ steps.lightrag-image-cache.outputs.cache-primary-key }}
       - name: Verify canonical facts reach pinned LightRAG retrieval
         run: >-
           docker compose -p ontology-ci -f compose.yaml -f compose.ontology.yaml
