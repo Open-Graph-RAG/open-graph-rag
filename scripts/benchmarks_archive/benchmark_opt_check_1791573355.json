@@ -1,0 +1,91 @@
+{
+  "args": {
+    "label": "opt_check",
+    "restart_args": "",
+    "timeout": 900,
+    "smoke": true,
+    "rounds": 1
+  },
+  "summary": {
+    "min": 76.8034985560007,
+    "max": 76.8034985560007,
+    "median": 76.8034985560007,
+    "mean": 76.8034985560007,
+    "n": 1
+  },
+  "results": [
+    {
+      "label": "opt_check",
+      "exit_code": 0,
+      "restart_script_seconds": 71.85255436500302,
+      "fully_ready_seconds": 76.8034985560007,
+      "outcome": "ok",
+      "per_service": {
+        "ollama": {
+          "first_seen_s": 72.14985528000034,
+          "container_ready_s": 72.14985528000034,
+          "fully_ready_s": 72.14985528000034,
+          "last_state": "state=running health=healthy status=Up 50 seconds (healthy)"
+        },
+        "mongodb": {
+          "first_seen_s": 72.14985528000034,
+          "container_ready_s": 72.14985528000034,
+          "fully_ready_s": 72.14985528000034,
+          "last_state": "state=running health=healthy status=Up 49 seconds (healthy)"
+        },
+        "postgres": {
+          "first_seen_s": 72.14985528000034,
+          "container_ready_s": 72.14985528000034,
+          "fully_ready_s": 72.14985528000034,
+          "last_state": "state=running health=healthy status=Up 49 seconds (healthy)"
+        },
+        "lightrag": {
+          "first_seen_s": 72.14985528000034,
+          "container_ready_s": 72.14985528000034,
+          "fully_ready_s": 72.14985528000034,
+          "last_state": "state=running health=healthy status=Up 42 seconds (healthy)"
+        },
+        "mcp": {
+          "first_seen_s": 72.14985528000034,
+          "container_ready_s": 72.14985528000034,
+          "fully_ready_s": 72.14985528000034,
+          "last_state": "state=running health=healthy status=Up 10 seconds (healthy)"
+        },
+        "n8n": {
+          "first_seen_s": 72.14985528000034,
+          "container_ready_s": 72.14985528000034,
+          "fully_ready_s": 72.14985528000034,
+          "last_state": "state=running health= status=Up 49 seconds"
+        },
+        "librechat": {
+          "first_seen_s": 72.14985528000034,
+          "container_ready_s": 72.14985528000034,
+          "fully_ready_s": 76.41569464400163,
+          "last_state": "state=running health= status=Up 4 seconds"
+        }
+      }
+    }
+  ],
+  "smoke": {
+    "mcp_health": {
+      "stdout": "200",
+      "stderr": "",
+      "code": 0
+    },
+    "lightrag_health": {
+      "stdout": "200",
+      "stderr": "",
+      "code": 0
+    },
+    "librechat_root": {
+      "stdout": "200",
+      "stderr": "",
+      "code": 0
+    },
+    "mcp_bridge_smoke": {
+      "stdout": "LightRAG health: OK\nMCP initialize + tools/list: OK",
+      "stderr": "",
+      "code": 0
+    }
+  }
+}
