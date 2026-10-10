@@ -1,0 +1,26 @@
+{% set json_text = data | tojson(indent=2) %}
+<div class="code-block" id="{{ container_id or 'json-view' }}">
+  <pre><code>{{ json_text }}</code></pre>
+</div>
+<button type="button" class="btn btn--sm" data-copy-target="{{ container_id or 'json-view' }}" aria-label="Copy JSON to clipboard">
+  Copy
+</button>
+
+<script>
+  (function () {
+    const button = document.querySelector('[data-copy-target="{{ container_id or 'json-view' }}"]');
+    if (!button) return;
+    button.addEventListener('click', async function () {
+      const container = document.getElementById('{{ container_id or 'json-view' }}');
+      const text = container ? container.innerText : '';
+      try {
+        await navigator.clipboard.writeText(text);
+        const original = button.textContent;
+        button.textContent = 'Copied';
+        setTimeout(function () { button.textContent = original; }, 1500);
+      } catch (err) {
+        button.textContent = 'Failed';
+      }
+    });
+  })();
+</script>

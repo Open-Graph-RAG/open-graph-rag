@@ -11,7 +11,7 @@ services:
     networks: [knowledge_api]
     healthcheck:
       test: [CMD, ollama, list]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 15
   ollama-init:
@@ -35,7 +35,7 @@ services:
     networks: [chat_db]
     healthcheck:
       test: [CMD-SHELL, 'mongosh --quiet --username "$$MONGO_INITDB_ROOT_USERNAME" --password "$$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval "quit(db.adminCommand({ping:1}).ok ? 0 : 1)"']
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 15
 
@@ -52,7 +52,7 @@ services:
     networks: [knowledge_db]
     healthcheck:
       test: [CMD-SHELL, 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 15
 
@@ -109,10 +109,10 @@ services:
         condition: service_healthy
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9621/health', timeout=5)"]
-      interval: 15s
-      timeout: 10s
-      retries: 30
-      start_period: 90s
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
 
   mcp:
     build: ./mcp
@@ -127,9 +127,9 @@ services:
         condition: service_healthy
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
-      interval: 15s
+      interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 5
     read_only: true
     tmpfs: [/tmp]
     cap_drop: [ALL]

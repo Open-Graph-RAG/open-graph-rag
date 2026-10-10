@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Versions — {{ ontology_id }} — Ontology Console{% endblock %}
+
+{% set current_section = "ontologies" %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <h1>Versions</h1>
+      <p class="page-header__subtitle">Ontology <span class="mono">{{ ontology_id }}</span></p>
+    </div>
+  </div>
+
+  {% if versions %}
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Version</th>
+            <th>Status</th>
+            <th>Content hash</th>
+            <th>Created by</th>
+            <th>Created at</th>
+            <th>Published by</th>
+            <th>Published at</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for version in versions %}
+            <tr class="clickable-row" onclick="window.location.href='/ontologies/{{ ontology_id }}/versions/{{ version.version }}'" style="cursor:pointer">
+              <td class="td-mono">{{ version.version }}</td>
+              <td>
+                {% with status=version.status %}{% include "_partials/status_pill.html" %}{% endwith %}
+              </td>
+              <td class="td-mono" title="{{ version.content_hash or '' }}">
+                {{ (version.content_hash or '')[:12] }}{% if version.content_hash and version.content_hash | length > 12 %}…{% endif %}
+              </td>
+              <td>{{ version.created_by or "—" }}</td>
+              <td class="td-mono td-shrink">{{ version.created_at or "—" }}</td>
+              <td>{{ version.published_by or "—" }}</td>
+              <td class="td-mono td-shrink">{{ version.published_at or "—" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="card card--padded empty-state">
+      <div class="empty-state__title">No versions found</div>
+      <p>This ontology has no recorded versions.</p>
+    </div>
+  {% endif %}
+{% endblock %}

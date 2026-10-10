@@ -26,6 +26,12 @@ jobs:
           node-version: '24'
       - name: Install pinned test dependencies
         run: python -m pip install -r tests/requirements-ci.txt
+      - name: Install ontology service dependencies
+        run: |
+          python -m venv /tmp/ontology-venv
+          /tmp/ontology-venv/bin/pip install -r services/ontology/requirements.lock
+      - name: Ontology registry, governance, migrations and projection contracts
+        run: /tmp/ontology-venv/bin/python -m unittest discover -s tests/ontology -v
       - name: Ingestion helpers and workflow contracts
         run: node --test activepieces/helpers.test.cjs activepieces/workflows.test.cjs n8n/tests/*.test.cjs
       - name: MCP protocol and security contracts
@@ -54,3 +60,54 @@ jobs:
           docker compose -f compose.yaml -f compose.activepieces.yaml config --quiet
           docker compose -f compose.yaml -f compose.activepieces.yaml -f tests/e2e/compose.mock.yaml config --quiet
           docker compose -f compose.yaml -f compose.activepieces.yaml -f tests/e2e/compose.local.yaml config --quiet
+          docker compose -f compose.yaml -f compose.ontology.yaml config --quiet
+
+  ontology-postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17.4
+        env:
+          POSTGRES_PASSWORD: ontology-test-only
+          POSTGRES_DB: ontology_test
+        ports: [5432:5432]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ONTOLOGY_TEST_DATABASE_URL: postgresql://postgres:ontology-test-only@127.0.0.1:5432/ontology_test
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r services/ontology/requirements.lock
+      - run: python -m unittest discover -s tests/ontology -v
+
+  ontology-lightrag-e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - run: python scripts/init_env.py
+      - name: Start disposable governed stack with local provider mocks
+        run: >-
+          docker compose -p ontology-ci -f compose.yaml -f compose.ontology.yaml
+          -f tests/ontology/compose.e2e.yaml up -d --build --wait --wait-timeout 300
+          postgres mock-provider lightrag ontology ontology-projector ontology-gateway
+      - name: Verify canonical facts reach pinned LightRAG retrieval
+        run: >-
+          docker compose -p ontology-ci -f compose.yaml -f compose.ontology.yaml
+          -f tests/ontology/compose.e2e.yaml run --build --rm ontology-e2e-test
+      - name: Capture service logs
+        if: failure()
+        run: >-
+          docker compose -p ontology-ci -f compose.yaml -f compose.ontology.yaml
+          -f tests/ontology/compose.e2e.yaml logs --tail=100
+      - name: Remove disposable test data
+        if: always()
+        run: >-
+          docker compose -p ontology-ci -f compose.yaml -f compose.ontology.yaml
+          -f tests/ontology/compose.e2e.yaml down -v

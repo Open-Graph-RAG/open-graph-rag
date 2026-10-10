@@ -1,0 +1,30 @@
+{% if pagination is mapping and pagination.total_pages | default(0) > 1 %}
+  <div class="pagination">
+    <div class="pagination__info">
+      Page {{ pagination.page }} of {{ pagination.total_pages }} · {{ pagination.total }} total
+    </div>
+    <div class="pagination__controls">
+      {% if pagination.prev_url %}
+        <a class="btn btn--sm" href="{{ pagination.prev_url }}">Previous</a>
+      {% else %}
+        <span class="btn btn--sm" aria-disabled="true">Previous</span>
+      {% endif %}
+
+      <form class="pagination__jump" method="get" action="{{ pagination.path }}">
+        {% for key, value in (pagination.query_args or {}).items() %}
+          <input type="hidden" name="{{ key }}" value="{{ value }}">
+        {% endfor %}
+        <input type="hidden" name="page_size" value="{{ pagination.page_size }}">
+        <label for="page-jump">Go to</label>
+        <input id="page-jump" class="form-input" type="number" name="page" min="1" max="{{ pagination.total_pages }}" value="{{ pagination.page }}" aria-label="Jump to page">
+        <button type="submit" class="btn btn--sm">Go</button>
+      </form>
+
+      {% if pagination.next_url %}
+        <a class="btn btn--sm" href="{{ pagination.next_url }}">Next</a>
+      {% else %}
+        <span class="btn btn--sm" aria-disabled="true">Next</span>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}

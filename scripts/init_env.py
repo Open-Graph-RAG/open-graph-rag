@@ -14,9 +14,12 @@ lengths = {
     "JWT_SECRET": 48, "JWT_REFRESH_SECRET": 48,
     "AP_POSTGRES_PASSWORD": 32, "AP_ENCRYPTION_KEY": 16,
     "AP_JWT_SECRET": 32,
+    "ONTOLOGY_UI_SESSION_SECRET": 48,
 }
 for key, size in lengths.items():
     content = content.replace(f"{key}=GENERATE", f"{key}={secrets.token_hex(size)}")
+for placeholder in ("GENERATE_ONTOLOGY_ADMIN", "GENERATE_ONTOLOGY_READER"):
+    content = content.replace(placeholder, secrets.token_hex(32))
 try:
     fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
 except FileExistsError:

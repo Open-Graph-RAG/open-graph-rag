@@ -1,0 +1,135 @@
+id: ogr-core
+version: 1.0.0
+status: draft
+
+entities:
+  Person:
+    description: A person who participates in or is mentioned by the organization.
+    properties:
+      name:
+        type: string
+        required: true
+      email:
+        type: string
+      role:
+        type: string
+  Organization:
+    description: A company, institution, or other organization.
+    properties:
+      name:
+        type: string
+        required: true
+      description:
+        type: string
+  Team:
+    description: A group of people working toward a shared purpose.
+    properties:
+      name:
+        type: string
+        required: true
+  Project:
+    description: A bounded effort with an intended outcome.
+    properties:
+      name:
+        type: string
+        required: true
+      status:
+        type: string
+        enum: [planned, active, completed, cancelled]
+  System:
+    description: Software or infrastructure system.
+    properties:
+      name:
+        type: string
+        required: true
+      description:
+        type: string
+      lifecycle:
+        type: string
+        enum: [planned, active, deprecated, retired]
+  Requirement:
+    description: A capability, constraint, or other condition that must be met.
+    properties:
+      title:
+        type: string
+        required: true
+      description:
+        type: string
+      status:
+        type: string
+        enum: [proposed, accepted, implemented, rejected]
+  Decision:
+    description: A recorded architectural or business decision.
+    properties:
+      title:
+        type: string
+        required: true
+      status:
+        type: string
+        enum: [proposed, accepted, superseded, rejected]
+  Incident:
+    description: An event that disrupted or threatened a service or operation.
+    properties:
+      title:
+        type: string
+        required: true
+      status:
+        type: string
+        enum: [open, investigating, resolved, closed]
+  Document:
+    description: A source document containing organizational knowledge.
+    properties:
+      title:
+        type: string
+        required: true
+      uri:
+        type: string
+
+relations:
+  MEMBER_OF:
+    description: A person is a member of a team.
+    source: [Person]
+    target: [Team]
+    directed: true
+  OWNS:
+    description: A person or team owns a project or system.
+    source: [Person, Team]
+    target: [Project, System]
+    directed: true
+  DEPENDS_ON:
+    description: A system depends on another system.
+    source: [System]
+    target: [System]
+    directed: true
+  IMPLEMENTS:
+    description: A system implements a requirement.
+    source: [System]
+    target: [Requirement]
+    directed: true
+  DECIDED_BY:
+    description: A decision was made by a person or team.
+    source: [Decision]
+    target: [Person, Team]
+    directed: true
+  SUPERSEDES:
+    description: A decision supersedes an earlier decision.
+    source: [Decision]
+    target: [Decision]
+    directed: true
+    constraints:
+      allow_self_reference: false
+  DOCUMENTED_IN:
+    description: A decision or requirement is documented in a document.
+    source: [Decision, Requirement]
+    target: [Document]
+    directed: true
+  AFFECTS:
+    description: An incident affects a system.
+    source: [Incident]
+    target: [System]
+    directed: true
+
+validation:
+  unknown_entity_type: quarantine
+  unknown_relation_type: quarantine
+  missing_required_property: reject
