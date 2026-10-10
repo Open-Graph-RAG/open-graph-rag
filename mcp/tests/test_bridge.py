@@ -53,6 +53,36 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
                 await server.knowledge_search("A valid question")
         self.assertNotIn("PRIVATE", str(raised.exception))
 
+    async def test_authentication_regression_keeps_bridge_read_only(self):
+        reached_downstream = []
+
+        async def downstream(scope, receive, send):
+            reached_downstream.append(scope["path"])
+            await server.JSONResponse({"status": "ok"})(scope, receive, send)
+
+        transport = httpx.ASGITransport(app=server.BearerAuth(downstream))
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://mcp:8000"
+        ) as client:
+            missing = await client.post("/mcp", json={"jsonrpc": "2.0"})
+            self.assertEqual(missing.status_code, 401)
+            self.assertEqual(missing.headers["www-authenticate"], "Bearer")
+
+            invalid = await client.post(
+                "/mcp", headers={"Authorization": "Bearer invalid-regression-token"},
+                json={"jsonrpc": "2.0"},
+            )
+            self.assertEqual(invalid.status_code, 401)
+            self.assertEqual(reached_downstream, [])
+
+            accepted = await client.post(
+                "/mcp", headers={"Authorization": f"Bearer {server.MCP_TOKEN}"},
+                json={"jsonrpc": "2.0"},
+            )
+            self.assertEqual(accepted.status_code, 200, accepted.text)
+            self.assertEqual(accepted.json(), {"status": "ok"})
+            self.assertEqual(reached_downstream, ["/mcp"])
+
     async def test_mcp_auth_initialize_tools_and_validation(self):
         transport = httpx.ASGITransport(app=server.app)
         async with server.mcp.session_manager.run():
