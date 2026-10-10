@@ -1,0 +1,1 @@
+DEMO FICTIONAL JIRA SNAPSHOT. Ticket: CP-263. Project: Customer Portal. Status: Open. Product: Northstar Workspace. The team needs to define which subscription plans and account types qualify for self-service plan changes. Owner: UNASSIGNED. The ticket contains no eligibility rules and does not identify a responsible team. Source: https://jira.northstar.invalid/browse/CP-263.

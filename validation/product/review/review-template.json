@@ -1,0 +1,15 @@
+{
+  "review_id": "",
+  "blind_response_id": "",
+  "reviewer_id": "",
+  "factual_correctness": null,
+  "citations_semantically_supported": null,
+  "state_correct": null,
+  "no_invented_ownership_or_authorization": null,
+  "uncertainty_correct": null,
+  "conflict_recall": null,
+  "claims_reviewed": [],
+  "notes": "",
+  "adjudicator_id": null,
+  "adjudication": null
+}

@@ -97,7 +97,6 @@ services:
       - "127.0.0.1:${ONTOLOGY_UI_PORT:-8020}:8010"
     environment:
       ONTOLOGY_API_URL: http://ontology:8010
-      ONTOLOGY_UI_SESSION_SECRET: ${ONTOLOGY_UI_SESSION_SECRET:?Configure .env}
       ONTOLOGY_WORKSPACE: ${ONTOLOGY_WORKSPACE:-company_governed}
       ONTOLOGY_UI_HTTPS_ONLY: ${ONTOLOGY_UI_HTTPS_ONLY:-}
     # Per CONTRACT.md, the UI must not join `ontology_backend` (which

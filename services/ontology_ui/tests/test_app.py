@@ -22,6 +22,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from services.ontology_ui import app as app_module  # noqa: E402
 from services.ontology_ui.app import create_app  # noqa: E402
+from services.ontology_ui.auth import SessionStore  # noqa: E402
 
 
 SESSION_SECRET = "x" * 64
@@ -92,6 +93,7 @@ def _make_client(
     *,
     raise_on: dict[str, BaseException] | None = None,
     status_overrides: dict[str, int] | None = None,
+    https_only: bool = False,
 ) -> TestClient:
     """Build a TestClient whose OntologyClient constructor returns a FakeUpstream.
 
@@ -133,6 +135,7 @@ def _make_client(
     app = create_app(
         api_url="http://upstream.test",
         session_secret=SESSION_SECRET,
+        https_only=https_only,
     )
     # Patch the OntologyClient used by the app to return our fake.
     patches = [
@@ -140,7 +143,8 @@ def _make_client(
     ]
     for p in patches:
         p.start()
-    client = TestClient(app, follow_redirects=False)
+    client = TestClient(app, follow_redirects=False,
+                        base_url="https://testserver" if https_only else "http://testserver")
     client._patches = patches  # type: ignore[attr-defined]
     return client
 
@@ -248,6 +252,21 @@ class HealthTests(unittest.TestCase):
             _teardown(client)
 
 
+class SessionStoreCapacityTests(unittest.TestCase):
+    def test_one_principal_cannot_fill_global_session_capacity(self):
+        store=SessionStore(ttl=3600,maximum=3,maximum_per_principal=2)
+        old=store.create("valid-reader-token","workspace")
+        current=store.create("valid-reader-token","workspace")
+        latest=store.create("valid-reader-token","workspace")
+        other=store.create("other-reader-token","workspace")
+        self.assertIsNone(store.get(old))
+        self.assertIsNotNone(store.get(current))
+        self.assertIsNotNone(store.get(latest))
+        self.assertIsNotNone(store.get(other))
+        with self.assertRaisesRegex(RuntimeError,"capacity"):
+            store.create("third-principal-token","workspace")
+
+
 class AuthTests(unittest.TestCase):
     def setUp(self) -> None:
         self.client = _make_client(_default_fixtures())
@@ -274,6 +293,93 @@ class AuthTests(unittest.TestCase):
         )
         self.assertIn(response.status_code, (302, 303))
         self.assertEqual(response.headers["location"], "/facts")
+        cookie = response.headers["set-cookie"]
+        self.assertIn("HttpOnly", cookie)
+        self.assertIn("SameSite=strict", cookie)
+        self.assertNotIn(VALID_TOKEN, cookie)
+
+    def test_capacity_failure_preserves_existing_session(self) -> None:
+        _login(self.client)
+        sid = self.client.cookies.get("ontology_session")
+        store = self.client.app.state.session_store
+        store.maximum = 1
+        response = self.client.post("/login", data={
+            "token": "u" * 40, "workspace": VALID_WORKSPACE, "next": "/"},
+            follow_redirects=False)
+        self.assertEqual(response.status_code, 503)
+        self.assertIsNotNone(store.get(sid))
+        self.assertEqual(self.client.get("/facts").status_code, 200)
+
+    def test_secure_cookie_legacy_cookie_expiry_and_relogin_revocation(self) -> None:
+        client = _make_client(_default_fixtures(), https_only=True)
+        try:
+            _login(client)
+            first_sid = client.cookies.get("ontology_session")
+            self.assertTrue(first_sid)
+            self.assertTrue(client.app.state.session_store.get(first_sid))
+            response = client.get("/login", headers={"Cookie": "session=legacy-signed-value"})
+            self.assertIn("session=\"\"", response.headers.get("set-cookie", ""))
+            self.assertIn("Secure", response.headers.get("set-cookie", ""))
+            response = client.post("/login", data={"token": VALID_TOKEN,
+                "workspace": VALID_WORKSPACE, "next": "/"}, follow_redirects=False)
+            second_sid = client.cookies.get("ontology_session")
+            self.assertNotEqual(first_sid, second_sid)
+            self.assertIsNone(client.app.state.session_store.get(first_sid))
+            self.assertTrue(client.app.state.session_store.get(second_sid))
+            self.assertIn("Secure", response.headers.get("set-cookie", ""))
+        finally:
+            _teardown(client)
+
+    def test_expired_and_revoked_sessions_are_rejected(self) -> None:
+        import time
+        _login(self.client)
+        sid_cookie = self.client.cookies.get("ontology_session")
+        self.assertTrue(sid_cookie)
+        store = self.client.app.state.session_store
+        with store._lock:
+            token, workspace, _ = store._sessions[sid_cookie]
+            store._sessions[sid_cookie] = (token, workspace, time.monotonic() - 1)
+        response = self.client.get("/facts", follow_redirects=False)
+        self.assertIn(response.status_code, (302, 303))
+        self.assertIn('ontology_session=""', response.headers.get("set-cookie", ""))
+        store.ttl = 3600
+        _login(self.client)
+        sid = self.client.cookies.get("ontology_session")
+        store.revoke(sid)
+        response = self.client.get("/facts", follow_redirects=False)
+        self.assertIn(response.status_code, (302, 303))
+        self.assertIn('ontology_session=""', response.headers.get("set-cookie", ""))
+
+    def test_login_post_with_same_origin_origin_header_succeeds(self) -> None:
+        response = self.client.post(
+            "/login",
+            data={"token": VALID_TOKEN, "workspace": VALID_WORKSPACE, "next": "/facts"},
+            headers={"Origin": "http://testserver"},
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/facts")
+        self.assertIn("ontology_session=", response.headers.get("set-cookie", ""))
+
+    def test_login_post_rejects_cross_origin_without_setting_cookie(self) -> None:
+        response = self.client.post(
+            "/login",
+            data={"token": VALID_TOKEN, "workspace": VALID_WORKSPACE, "next": "/facts"},
+            headers={"Origin": "https://attacker.example"},
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertNotIn("set-cookie", response.headers)
+
+    def test_login_post_rejects_cross_origin_referer_fallback(self) -> None:
+        response = self.client.post(
+            "/login",
+            data={"token": VALID_TOKEN, "workspace": VALID_WORKSPACE, "next": "/facts"},
+            headers={"Referer": "https://attacker.example/login"},
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertNotIn("set-cookie", response.headers)
 
     def test_login_post_with_too_short_token_rejected(self) -> None:
         response = self.client.post(
@@ -293,6 +399,40 @@ class AuthTests(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
         self.assertIn("Workspace", response.text)
 
+    def test_workspace_denial_does_not_create_browser_session(self) -> None:
+        client = _make_client(_default_fixtures(), status_overrides={"list_ontologies": 403})
+        try:
+            response = client.post("/login", data={"token": VALID_TOKEN,
+                "workspace": "other-workspace", "next": "/"}, follow_redirects=False)
+            self.assertEqual(response.status_code, 403)
+            self.assertNotIn("ontology_session", response.headers.get("set-cookie", ""))
+        finally:
+            _teardown(client)
+
+    def test_upstream_auth_denial_preserves_auth_status(self) -> None:
+        client = _make_client(_default_fixtures(), status_overrides={"list_ontologies": 401})
+        try:
+            response = client.post("/login", data={"token": VALID_TOKEN,
+                "workspace": VALID_WORKSPACE, "next": "/"}, follow_redirects=False)
+            self.assertEqual(response.status_code, 401)
+            self.assertIn("access denied", response.text.lower())
+        finally:
+            _teardown(client)
+
+    def test_upstream_outages_are_not_reported_as_invalid_credentials(self) -> None:
+        for upstream_status in (500, 502):
+            with self.subTest(upstream_status=upstream_status):
+                client = _make_client(_default_fixtures(),
+                    status_overrides={"list_ontologies": upstream_status})
+                try:
+                    response = client.post("/login", data={"token": VALID_TOKEN,
+                        "workspace": VALID_WORKSPACE, "next": "/"}, follow_redirects=False)
+                    self.assertEqual(response.status_code, 503)
+                    self.assertIn("temporarily unavailable", response.text.lower())
+                    self.assertNotIn("access denied", response.text.lower())
+                finally:
+                    _teardown(client)
+
     def test_logout_clears_session(self) -> None:
         _login(self.client)
         response = self.client.post("/logout", follow_redirects=False)
@@ -300,6 +440,17 @@ class AuthTests(unittest.TestCase):
         response = self.client.get("/", follow_redirects=False)
         self.assertIn(response.status_code, (302, 303))
         self.assertIn("/login", response.headers["location"])
+
+    def test_logout_rejects_cross_origin_and_preserves_session(self) -> None:
+        _login(self.client)
+        response = self.client.post(
+            "/logout",
+            headers={"Origin": "https://attacker.example"},
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 403)
+        dashboard = self.client.get("/", follow_redirects=False)
+        self.assertEqual(dashboard.status_code, 200)
 
 
 class FactsTests(unittest.TestCase):
@@ -548,8 +699,7 @@ class ReviewFixTests(unittest.TestCase):
             response = client.get("/facts", follow_redirects=False)
             self.assertIn(response.status_code, (302, 303))
             location = response.headers["location"]
-            # The flash travels via the session cookie that TestClient carries
-            # across the redirect.
+            # The generic expiry notice is selected by the redirect query.
             login_page = client.get(location, follow_redirects=False)
             self.assertEqual(login_page.status_code, 200)
             self.assertIn("Session expired or token invalid", login_page.text)

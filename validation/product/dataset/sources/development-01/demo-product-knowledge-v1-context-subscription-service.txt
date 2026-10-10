@@ -1,0 +1,1 @@
+DEMO FICTIONAL CONTEXT DOCUMENT. The Northstar Subscription Service is the shared component that stores active plans and processes plan-change requests. The Customer Portal and Operations Console both call it. The Subscription Platform team owns the service. This overview does not define whether a customer request needs approval or when a new plan becomes effective.

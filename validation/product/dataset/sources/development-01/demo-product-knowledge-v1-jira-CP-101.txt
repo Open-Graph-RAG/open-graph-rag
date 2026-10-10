@@ -1,0 +1,1 @@
+DEMO FICTIONAL JIRA SNAPSHOT. Ticket: CP-101. Project: Customer Portal. Status: Done. Product: Northstar Workspace. Requirement: show the customer's current subscription plan and renewal date in Account > Plan. The Customer Experience team owns delivery. Source: https://jira.northstar.invalid/browse/CP-101.

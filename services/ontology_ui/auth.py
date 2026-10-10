@@ -1,114 +1,129 @@
-"""Session helpers for the ontology console.
-
-The UI never accepts a static API key. Users log in with their ontology
-bearer token plus the workspace name; both are stored in a Starlette
-signed-cookie session. Each request handler constructs a per-request
-`OntologyClient` bound to the session's token and workspace.
-
-A `https_only` flag lets the same image run on plain `127.0.0.1` for
-local development while forcing secure cookies when deployed behind
-HTTPS in production.
-"""
+"""Opaque, process-local browser sessions for the ontology console."""
 from __future__ import annotations
 
 import secrets
+import threading
+import time
 from urllib.parse import quote
 
-from fastapi import Request
+from fastapi import Request, Response
 from fastapi.responses import RedirectResponse
 from starlette.status import HTTP_303_SEE_OTHER
 
+COOKIE_NAME = "ontology_session"
+SESSION_TTL = 8 * 60 * 60
+MAX_SESSIONS = 10_000
+MAX_SESSIONS_PER_PRINCIPAL = 20
 
-SESSION_KEYS = ("token", "workspace")
+
+class SessionStore:
+    """Bounded single-process store. Deploy exactly one UI worker/replica."""
+
+    def __init__(self, ttl: int = SESSION_TTL, maximum: int = MAX_SESSIONS,
+                 maximum_per_principal: int = MAX_SESSIONS_PER_PRINCIPAL):
+        if ttl <= 0 or maximum <= 0 or maximum_per_principal <= 0:
+            raise ValueError("session limits must be positive")
+        self.ttl, self.maximum, self.maximum_per_principal = ttl, maximum, maximum_per_principal
+        self._sessions: dict[str, tuple[str, str, float]] = {}
+        self._lock = threading.RLock()
+
+    def create(self, token: str, workspace: str) -> str:
+        now = time.monotonic()
+        with self._lock:
+            self._purge(now)
+            principal_sessions=[(sid,item[2]) for sid,item in self._sessions.items() if item[:2]==(token,workspace)]
+            if len(principal_sessions)>=self.maximum_per_principal:
+                oldest_sid=min(principal_sessions,key=lambda item:item[1])[0]
+                self._sessions.pop(oldest_sid,None)
+            if len(self._sessions) >= self.maximum:
+                # Expired entries were purged; refuse rather than evicting another principal's live login.
+                raise RuntimeError("Ontology UI session capacity reached")
+            sid = secrets.token_urlsafe(32)
+            self._sessions[sid] = (token, workspace, now + self.ttl)
+            return sid
+
+    def get(self, sid: str) -> tuple[str, str] | None:
+        with self._lock:
+            item = self._sessions.get(sid)
+            if item is None:
+                return None
+            if item[2] <= time.monotonic():
+                self._sessions.pop(sid, None)
+                return None
+            return item[0], item[1]
+
+    def revoke(self, sid: str) -> None:
+        with self._lock:
+            self._sessions.pop(sid, None)
+
+    def _purge(self, now: float) -> None:
+        for sid, (_, _, expires) in list(self._sessions.items()):
+            if expires <= now:
+                self._sessions.pop(sid, None)
 
 
 class LoginRedirect(Exception):
-    """Raised by `get_principal` when the session is missing or invalid.
-
-    The FastAPI app registers a handler that turns this into a 303 to
-    `/login?next=<original-path>`. Using an exception (rather than
-    returning a `RedirectResponse` from `get_principal`) keeps the
-    dependency typed as a plain principal dict.
-    """
-
     def __init__(self, response: RedirectResponse):
         self.response = response
         super().__init__("login required")
 
 
 def new_session_secret() -> str:
-    """Generate a development-only session secret. Production should set
-    `ONTOLOGY_UI_SESSION_SECRET` to a long, persistent value."""
+    """Compatibility helper; secret is no longer used for client-side sessions."""
     return secrets.token_hex(48)
 
 
+def _sid(request: Request) -> str:
+    return request.cookies.get(COOKIE_NAME, "")
+
+
+def principal(request: Request) -> dict[str, str] | None:
+    credentials = request.app.state.session_store.get(_sid(request))
+    if not credentials:
+        return None
+    token, workspace = credentials
+    return {"token": token, "workspace": workspace, "token_handle": _handle_for(token)}
+
+
 def is_authenticated(request: Request) -> bool:
-    session = request.session
-    token = session.get("token")
-    workspace = session.get("workspace")
-    return (
-        isinstance(token, str)
-        and len(token) >= 32
-        and isinstance(workspace, str)
-        and bool(workspace.strip())
-    )
+    return principal(request) is not None
 
 
 def get_principal(request: Request) -> dict[str, str]:
-    """Return the authenticated principal or raise `LoginRedirect`.
-
-    The app's exception handler converts `LoginRedirect` into a 303
-    to `/login?next=<original-path>`.
-    """
-    if not is_authenticated(request):
+    value = principal(request)
+    if value is None:
         raise LoginRedirect(_redirect_to_login(request))
-    return {
-        "token": request.session["token"],
-        "workspace": request.session["workspace"],
-        "token_handle": _handle_for(request.session["token"]),
-    }
+    return value
 
 
 def _handle_for(token: str) -> str:
-    """Render a non-reversible handle for the top bar, e.g. `••••a3f1`."""
-    if not isinstance(token, str) or len(token) < 4:
-        return "••••"
-    return "••••" + token[-4:]
+    return "••••" + token[-4:] if isinstance(token, str) and len(token) >= 4 else "••••"
 
 
 def _redirect_to_login(request: Request) -> RedirectResponse:
-    path = request.url.path
-    next_arg = quote(path, safe="/")
-    target = f"/login?next={next_arg}"
-    return RedirectResponse(url=target, status_code=HTTP_303_SEE_OTHER)
+    return RedirectResponse(f"/login?next={quote(request.url.path, safe='/')}", status_code=HTTP_303_SEE_OTHER)
 
 
-def clear_session(request: Request) -> None:
-    """Empty the session so the next read returns no principal."""
-    for key in SESSION_KEYS:
-        request.session.pop(key, None)
+def issue_session(request: Request, response: Response, token: str, workspace: str) -> None:
+    # Rotate only after capacity is confirmed, preserving an existing login on failure.
+    previous_sid=_sid(request)
+    sid = request.app.state.session_store.create(token, workspace)
+    request.app.state.session_store.revoke(previous_sid)
+    response.set_cookie(COOKIE_NAME, sid, max_age=request.app.state.session_store.ttl,
+                        httponly=True, secure=request.app.state.https_only,
+                        samesite="strict", path="/")
 
 
-def login(
-    request: Request,
-    token: str,
-    workspace: str,
-    *,
-    min_token_length: int = 32,
-) -> tuple[bool, str | None]:
-    """Validate and store credentials in the session.
+def clear_session(request: Request, response: Response | None = None) -> None:
+    request.app.state.session_store.revoke(_sid(request))
+    if response is not None:
+        response.delete_cookie(COOKIE_NAME, path="/", httponly=True,
+                               secure=request.app.state.https_only, samesite="strict")
 
-    Returns `(True, None)` on success. On failure, returns `(False, message)`
-    and does not touch the session. The `min_token_length` defaults to the
-    minimum required by the ontology service itself.
-    """
-    if not isinstance(token, str):
-        return False, "Token is required."
-    token = token.strip()
-    if len(token) < min_token_length:
+
+def login(token: str, workspace: str, *, min_token_length: int = 32) -> tuple[bool, str | None]:
+    if not isinstance(token, str) or len(token.strip()) < min_token_length:
         return False, f"Token must be at least {min_token_length} characters."
     if not isinstance(workspace, str) or not workspace.strip():
         return False, "Workspace is required."
-    request.session["token"] = token
-    request.session["workspace"] = workspace.strip()
     return True, None

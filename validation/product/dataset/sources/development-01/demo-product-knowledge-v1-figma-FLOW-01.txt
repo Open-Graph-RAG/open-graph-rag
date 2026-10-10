@@ -1,0 +1,1 @@
+DEMO FICTIONAL FIGMA SNAPSHOT. Design: FLOW-01. File: Northstar Customer Portal. Version: 0.8 draft. Product: Northstar Workspace. The Account > Plan prototype lets a customer choose a new plan and review the price and renewal date. The Product Design team owns the prototype. Related implementation ticket: CP-248. Source: https://figma.northstar.invalid/design/FLOW-01.

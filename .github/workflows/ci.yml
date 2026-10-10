@@ -29,9 +29,15 @@ jobs:
       - name: Install ontology service dependencies
         run: |
           python -m venv /tmp/ontology-venv
-          /tmp/ontology-venv/bin/pip install -r services/ontology/requirements.lock
+          /tmp/ontology-venv/bin/pip install -r services/ontology/requirements.lock -r services/ontology_ui/requirements.lock
       - name: Ontology registry, governance, migrations and projection contracts
         run: /tmp/ontology-venv/bin/python -m unittest discover -s tests/ontology -v
+      - name: Ontology console session and workspace contracts
+        run: /tmp/ontology-venv/bin/python -m unittest discover -s services/ontology_ui/tests -v
+      - name: Offline product validation contracts
+        run: |
+          python -m unittest discover -s validation/product/tests -v
+          python -m validation.product.cli preflight
       - name: Ingestion helpers and workflow contracts
         run: node --test activepieces/helpers.test.cjs activepieces/workflows.test.cjs n8n/tests/*.test.cjs
       - name: MCP protocol and security contracts
@@ -61,6 +67,11 @@ jobs:
           docker compose -f compose.yaml -f compose.activepieces.yaml -f tests/e2e/compose.mock.yaml config --quiet
           docker compose -f compose.yaml -f compose.activepieces.yaml -f tests/e2e/compose.local.yaml config --quiet
           docker compose -f compose.yaml -f compose.ontology.yaml config --quiet
+          env OGR_VALIDATION_LIGHTRAG_KEY=ci-validation-only \
+            OGR_VALIDATION_SNAPSHOT_ROOT=/tmp/ogr-validation-snapshot \
+            OGR_VALIDATION_INPUTS_ROOT=/tmp/ogr-validation-inputs \
+            OGR_VALIDATION_RUNS_ROOT=/tmp/ogr-validation-runs \
+            docker compose -p ogr-validation-config -f validation/product/environments/compose.validation.yaml config --quiet
 
   ontology-postgres:
     runs-on: ubuntu-24.04

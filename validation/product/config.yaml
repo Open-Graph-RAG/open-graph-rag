@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "dataset": {
+    "development_cases": "dataset/development.jsonl",
+    "heldout_cases": "dataset/heldout.jsonl",
+    "gold": "dataset/gold.jsonl",
+    "corpus": "dataset/corpus.jsonl"
+  },
+  "prompt": "prompt.txt",
+  "ontology": "../../ontology/definitions/ogr-core/1.0.0.yaml",
+  "environment_recipe": "environments/compose.validation.yaml",
+  "manifest": "frozen-manifest.json",
+  "runs_dir": ".runs",
+  "arms": [
+    "baseline",
+    "candidate"
+  ],
+  "repeats": 2,
+  "budget": {
+    "max_requests": 1152,
+    "request_timeout_seconds": 20,
+    "max_request_bytes": 65536,
+    "max_input_tokens": 12000,
+    "max_output_tokens": 700,
+    "max_cost_usd": 20.0,
+    "input_usd_per_million": 0.0,
+    "output_usd_per_million": 0.0,
+    "max_total_input_tokens": 1200000,
+    "max_total_output_tokens": 403200,
+    "max_duration_seconds": 14400,
+    "max_response_bytes": 65536
+  },
+  "bootstrap": {
+    "samples": 5000,
+    "seed": 20261010
+  },
+  "live": {}
+}

@@ -561,7 +561,8 @@ See the [ontology runbook](docs/ontology/runbook.md),
 The `ontology-ui` service provides a read-only operations console at
 `http://127.0.0.1:${ONTOLOGY_UI_PORT:-8020}`. Sign in with the same
 bearer token and workspace name you would put in a `curl` request; the
-UI stores them in a signed session cookie and forwards them to the
-ontology API. All mutating operations remain on the API and `docker
-compose exec` workflows. Set `ONTOLOGY_UI_HTTPS_ONLY=1` when exposing
-the console behind TLS.
+UI authorizes them with the ontology API and stores them server-side behind
+an opaque, HttpOnly session cookie. Run one UI process/replica; its bounded
+in-memory sessions are not shared across workers. All mutating operations
+remain on the API and `docker compose exec` workflows. Set
+`ONTOLOGY_UI_HTTPS_ONLY=1` when exposing the console behind TLS.

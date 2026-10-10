@@ -34,7 +34,7 @@
         <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle light and dark theme">
           <span aria-hidden="true">◐</span>
         </button>
-        {% if request.session.get("token") %}
+        {% if authenticated %}
           <form method="post" action="/logout" style="display:inline">
             <button type="submit" class="btn btn--danger btn--sm">Logout</button>
           </form>

@@ -1,0 +1,98 @@
+# Isolated validation-only LightRAG A/B overlay. Never merges into compose.yaml.
+# Snapshot path must point to prepare_snapshot() output with baseline/ and candidate/.
+services:
+  ollama:
+    image: ollama/ollama:0.34.2@sha256:c715bebf769913db6c82d96f8a8dfee989c4bdfe19fa7d700e3d41ee0ceb5461
+    volumes:
+      - validation_ollama:/root/.ollama
+    networks: [validation]
+    # No published host ports. Models must be loaded explicitly by operator.
+
+  validation-baseline:
+    image: ghcr.io/hkuds/lightrag:v1.5.7@sha256:5bdbd524931b011df246fe20888d110cef691e6804c12cde636a2b746d7de27e
+    environment: &lightrag-env
+      HOST: 0.0.0.0
+      PORT: "9621"
+      WORKERS: "1"
+      WORKING_DIR: /app/data
+      INPUT_DIR: /app/inputs
+      WORKSPACE: ogr-validation
+      LIGHTRAG_API_KEY: ${OGR_VALIDATION_LIGHTRAG_KEY:?Set a validation-only key in the private environment}
+      WHITELIST_PATHS: /health
+      LIGHTRAG_KV_STORAGE: JsonKVStorage
+      LIGHTRAG_DOC_STATUS_STORAGE: JsonDocStatusStorage
+      LIGHTRAG_VECTOR_STORAGE: NanoVectorDBStorage
+      LIGHTRAG_GRAPH_STORAGE: NetworkXStorage
+      LLM_BINDING: ollama
+      LLM_BINDING_HOST: http://ollama:11434
+      LLM_BINDING_API_KEY: ollama-local
+      LLM_MODEL: ${OGR_VALIDATION_LOCAL_CHAT_MODEL:-qwen2.5:3b}
+      EMBEDDING_BINDING: ollama
+      EMBEDDING_BINDING_HOST: http://ollama:11434
+      EMBEDDING_BINDING_API_KEY: ollama-local
+      EMBEDDING_MODEL: ${OGR_VALIDATION_LOCAL_EMBEDDING_MODEL:-bge-m3}
+      EMBEDDING_DIM: "1024"
+      EMBEDDING_SEND_DIM: "false"
+      EMBEDDING_USE_BASE64: "false"
+      RERANK_BINDING: "null"
+      MAX_ASYNC_LLM: "1"
+      MAX_PARALLEL_INSERT: "1"
+      SUMMARY_LANGUAGE: English
+    volumes:
+      - ${OGR_VALIDATION_SNAPSHOT_ROOT:?Set absolute isolated snapshot clone directory}/baseline:/app/data
+      - ${OGR_VALIDATION_INPUTS_ROOT:?Set absolute frozen read-only corpus input directory}:/app/inputs:ro
+    expose: ["9621"]
+    networks: [validation]
+    depends_on: [ollama]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9621/health', timeout=5)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  validation-candidate:
+    image: ghcr.io/hkuds/lightrag:v1.5.7@sha256:5bdbd524931b011df246fe20888d110cef691e6804c12cde636a2b746d7de27e
+    environment: *lightrag-env
+    volumes:
+      - ${OGR_VALIDATION_SNAPSHOT_ROOT:?Set absolute isolated snapshot clone directory}/candidate:/app/data
+      - ${OGR_VALIDATION_INPUTS_ROOT:?Set absolute frozen read-only corpus input directory}:/app/inputs:ro
+    expose: ["9621"]
+    networks: [validation]
+    depends_on: [ollama]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9621/health', timeout=5)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  validation-runner:
+    image: python:3.12.10-slim@sha256:04c9f5d0e3f145e50b06becc0f498ac568c2a79b06c5c6eafc4e7f2374de7ec8
+    profiles: [runner]
+    working_dir: /workspace
+    volumes:
+      - ../../..:/workspace:ro
+      - ${OGR_VALIDATION_RUNS_ROOT:?Set absolute ignored validation/product/.runs directory}:/workspace/validation/product/.runs:rw
+    environment:
+      PYTHONPATH: /workspace
+      OGR_VALIDATION_BASELINE_URL: http://validation-baseline:9621
+      OGR_VALIDATION_CANDIDATE_URL: http://validation-candidate:9621
+      OGR_VALIDATION_BASELINE_KEY: ${OGR_VALIDATION_LIGHTRAG_KEY:?Set validation-only key}
+      OGR_VALIDATION_CANDIDATE_KEY: ${OGR_VALIDATION_LIGHTRAG_KEY:?Set validation-only key}
+      OGR_VALIDATION_PROVIDER_URL: ${OGR_VALIDATION_PROVIDER_URL:-}
+      OGR_VALIDATION_API_KEY: ${OGR_VALIDATION_API_KEY:-}
+    networks: [validation]
+    depends_on:
+      validation-baseline:
+        condition: service_healthy
+      validation-candidate:
+        condition: service_healthy
+
+networks:
+  validation:
+    driver: bridge
+
+volumes:
+  validation_ollama:
+    driver: local
