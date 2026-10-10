@@ -13,13 +13,17 @@ from starlette.status import HTTP_303_SEE_OTHER
 COOKIE_NAME = "ontology_session"
 SESSION_TTL = 8 * 60 * 60
 MAX_SESSIONS = 10_000
+MAX_SESSIONS_PER_PRINCIPAL = 20
 
 
 class SessionStore:
     """Bounded single-process store. Deploy exactly one UI worker/replica."""
 
-    def __init__(self, ttl: int = SESSION_TTL, maximum: int = MAX_SESSIONS):
-        self.ttl, self.maximum = ttl, maximum
+    def __init__(self, ttl: int = SESSION_TTL, maximum: int = MAX_SESSIONS,
+                 maximum_per_principal: int = MAX_SESSIONS_PER_PRINCIPAL):
+        if ttl <= 0 or maximum <= 0 or maximum_per_principal <= 0:
+            raise ValueError("session limits must be positive")
+        self.ttl, self.maximum, self.maximum_per_principal = ttl, maximum, maximum_per_principal
         self._sessions: dict[str, tuple[str, str, float]] = {}
         self._lock = threading.RLock()
 
@@ -27,8 +31,12 @@ class SessionStore:
         now = time.monotonic()
         with self._lock:
             self._purge(now)
+            principal_sessions=[(sid,item[2]) for sid,item in self._sessions.items() if item[:2]==(token,workspace)]
+            if len(principal_sessions)>=self.maximum_per_principal:
+                oldest_sid=min(principal_sessions,key=lambda item:item[1])[0]
+                self._sessions.pop(oldest_sid,None)
             if len(self._sessions) >= self.maximum:
-                # Expired entries were purged; refuse rather than evicting a live login.
+                # Expired entries were purged; refuse rather than evicting another principal's live login.
                 raise RuntimeError("Ontology UI session capacity reached")
             sid = secrets.token_urlsafe(32)
             self._sessions[sid] = (token, workspace, now + self.ttl)
@@ -97,9 +105,10 @@ def _redirect_to_login(request: Request) -> RedirectResponse:
 
 
 def issue_session(request: Request, response: Response, token: str, workspace: str) -> None:
-    # Re-authentication must invalidate the prior browser credential first.
-    request.app.state.session_store.revoke(_sid(request))
+    # Rotate only after capacity is confirmed, preserving an existing login on failure.
+    previous_sid=_sid(request)
     sid = request.app.state.session_store.create(token, workspace)
+    request.app.state.session_store.revoke(previous_sid)
     response.set_cookie(COOKIE_NAME, sid, max_age=request.app.state.session_store.ttl,
                         httponly=True, secure=request.app.state.https_only,
                         samesite="strict", path="/")

@@ -13,12 +13,12 @@ def aggregate(score: dict[str,Any], arms: list[str], bootstrap_samples: int=5000
         for arm,values in by_arm.items():
             completion=sum(float(r["completed"]) for r in values)/len(values)
             gts=sum(float(bool(r["grounded_task_success"])) for r in values)/len(values) # pending review conservatively zero
-            scenarios[sid][arm].append((completion,gts,cat))
+            scenarios[sid][arm].append((completion,gts,cat,cid))
     metric_by_arm={}
     for arm in arms:
         allv=[x for vals in scenarios.values() for x in vals.get(arm,[])]
         metric_by_arm[arm]={"completion_rate":sum(x[0] for x in allv)/len(allv) if allv else None,"grounded_task_success_rate_conservative_unreviewed_as_failure":sum(x[1] for x in allv)/len(allv) if allv else None,"reviewed_response_count":sum(1 for r in score["rows"] if r["arm"]==arm and r.get("human_review_complete")),"denominator_case_repeats":sum(1 for r in score["rows"] if r["arm"]==arm)}
-    complete=sorted(s for s in scenarios if len(arms)>=2 and all(scenarios[s].get(a) for a in arms))
+    complete=sorted(s for s in scenarios if len(arms)>=2 and all(scenarios[s].get(a) for a in arms) and all({x[3] for x in scenarios[s][arms[0]]}=={x[3] for x in scenarios[s][a]} for a in arms[1:]))
     result={"scenario_count":len(scenarios),"paired_complete_scenario_count":len(complete),"bootstrap_unit":"scenario_id cluster; paired arms retained","repeat_handling":"repeats averaged within case; missing/unreviewed human judgments count as failure only in conservative GTS diagnostic","metrics_by_arm":metric_by_arm,"paired_candidate_minus_baseline":{}}
     if len(arms)<2: return result
     rng=random.Random(seed)

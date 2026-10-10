@@ -79,6 +79,59 @@ def _validate_case_population(dev: list[dict[str,Any]], held: list[dict[str,Any]
             if dict(scenario_counts)!={category:1 for category in HELDOUT_CATEGORY_COUNTS}:
                 raise ValueError(f"{name} scenario {scenario!r} must contain one case per category")
 
+def _validate_result_population(rows: list[dict[str,Any]], cfg: dict[str,Any], dev: list[dict[str,Any]], held: list[dict[str,Any]], expected_hashes: dict[str,str]|None=None) -> str:
+    if not rows:
+        raise ValueError("results contain no assigned rows")
+    splits={"development":dev,"heldout":held,"all":dev+held}
+    all_cases={c["id"]:c for c in dev+held}
+    expected={name:{(c["id"],arm,repeat) for c in cases for arm in cfg["arms"] for repeat in range(1,int(cfg["repeats"])+1)} for name,cases in splits.items()}
+    seen=set()
+    for row in rows:
+        if not isinstance(row,dict): raise ValueError("result row must be an object")
+        key=(row.get("case_id"),row.get("arm"),row.get("repeat"))
+        if key[0] not in all_cases: raise ValueError(f"unexpected result assignment: {key}")
+        case=all_cases[key[0]]
+        if row.get("scenario_id")!=case.get("scenario_id") or row.get("category")!=case.get("category"):
+            raise ValueError(f"result metadata does not match frozen case {key[0]}")
+        if expected_hashes is not None and row.get("input_hashes")!=expected_hashes:
+            raise ValueError("result row frozen input hashes do not match current preflight")
+        if key in seen: raise ValueError(f"duplicate result assignment: {key}")
+        seen.add(key)
+    declared={row.get("run_split") for row in rows if row.get("run_split") is not None}
+    if len(declared)>1 or (declared and any(row.get("run_split") is None for row in rows)):
+        raise ValueError("result rows mix run splits")
+    candidates=[name for name,assignments in expected.items() if assignments==seen and (not declared or name in declared)]
+    if len(candidates)!=1:
+        known=set().union(*expected.values())
+        unknown=seen-known
+        if unknown: raise ValueError(f"unexpected result assignments: {sorted(unknown, key=str)}")
+        declared_name=next(iter(declared),None)
+        if declared_name and declared_name not in expected:
+            raise ValueError(f"unknown result split: {declared_name}")
+        if declared:
+            missing=expected[declared_name]-seen
+        else:
+            closest=min(expected.values(),key=lambda assignments:len(assignments-seen))
+            missing=closest-seen
+        raise ValueError(f"incomplete or ambiguous result population; missing {len(missing)} assignments")
+    split=candidates[0]
+    expected_slots=len(expected[split])
+    if any(row.get("expected_slots",expected_slots)!=expected_slots for row in rows):
+        raise ValueError("result rows disagree with expected slot count")
+    run_ids=[row.get("run_id") for row in rows]
+    if any(value is not None for value in run_ids) and (any(value is None for value in run_ids) or len(set(run_ids))!=1):
+        raise ValueError("result rows mix run IDs")
+    response_ids=[row.get("response_id") for row in rows if row.get("response_id")]
+    if len(response_ids)!=len(set(response_ids)):
+        raise ValueError("duplicate response IDs in result population")
+    input_hashes=[row.get("input_hashes") for row in rows]
+    if any(value is not None for value in input_hashes) and (any(value is None for value in input_hashes) or any(value!=input_hashes[0] for value in input_hashes)):
+        raise ValueError("result rows mix frozen input hashes")
+    return split
+
+def _replay_response_id(run_id: str, key: tuple[str,str,int]) -> str:
+    return hashlib.sha256(f"{run_id}:{key}".encode()).hexdigest()[:16]
+
 def preflight(cfg, config_path: Path=DEFAULT_CONFIG, manifest_override: Path|None=None, freeze=False):
     files=_paths(cfg,config_path); manifest=(manifest_override or (config_path.resolve().parent/cfg["manifest"])).resolve()
     for name,p in files.items():
@@ -108,9 +161,8 @@ def preflight(cfg, config_path: Path=DEFAULT_CONFIG, manifest_override: Path|Non
         candidate=product_root/rel
         if candidate.is_file(): source_code["protocol:"+rel]=candidate
     actual={name:_digest(path) for name,path in {**files,**source_files,**source_code}.items()}
-    if freeze: manifest.write_text(json.dumps({"schema_version":1,"sha256":actual},indent=2)+"\n",encoding="utf-8")
-    elif not manifest.is_file(): raise ValueError("frozen manifest missing; run preflight --freeze after review")
-    else:
+    if not freeze and not manifest.is_file(): raise ValueError("frozen manifest missing; run preflight --freeze after review")
+    elif not freeze:
         lock=json.loads(manifest.read_text(encoding="utf-8")).get("sha256",{}); bad=[k for k,v in actual.items() if lock.get(k)!=v]
         extra=set(lock)-set(actual)
         if bad or extra: raise ValueError("frozen hash mismatch: "+", ".join(bad+sorted(extra)))
@@ -132,6 +184,7 @@ def preflight(cfg, config_path: Path=DEFAULT_CONFIG, manifest_override: Path|Non
         if not isinstance(g.get("evidence"),list) or any(e.get("source_id") not in c["source_ids"] or e.get("version")!=source_by_id[e["source_id"]]["version"] or e.get("evidence_id")!=source_by_id[e["source_id"]]["evidence_id"] for e in g["evidence"]): raise ValueError(f"gold evidence references invalid: {g['case_id']}")
     heldids={c["id"] for c in held}; review={s:sum(g.get("review_status")==s for g in gold if g["case_id"] in heldids) for s in sorted({g.get("review_status","missing") for g in gold if g["case_id"] in heldids})}
     http_calls=(len(allcases)*len(cfg["arms"])*int(cfg["repeats"])*2)
+    if freeze: manifest.write_text(json.dumps({"schema_version":1,"sha256":actual},indent=2)+"\n",encoding="utf-8")
     return {"status":"ok","development_cases":len(dev),"heldout_cases":len(held),"gold_cases":len(gold),"corpus_sources":len(corpus),"category_counts":cats,"hashes":actual,"manifest":str(manifest),"frozen":True,"heldout_review_status":review,"planned_live_http_calls_all_cases":http_calls,"max_live_http_calls":cfg["budget"].get("max_requests"),"live_cost_pricing_configured":bool(cfg["budget"].get("input_usd_per_million",0) and cfg["budget"].get("output_usd_per_million",0))}
 
 def _load(cfg, config_path):
@@ -211,7 +264,12 @@ def run_live(args,cfg,config_path,manifest):
             if isinstance(trace,dict): row["attempt_trace"]=trace
         if adapter and hasattr(adapter,"budget_snapshot"): row["budget_consumed"]=adapter.budget_snapshot()
         _flush_journal(out,slots)
-    print(out); return 0
+    completed=sum(row.get("status")=="completed" for row in slots.values())
+    print(out)
+    if completed==0:
+        print(f"error: live run produced no completed responses; failure journal saved at {out}",file=sys.stderr)
+        return 2
+    return 0
 
 def replay(args,cfg,config_path,manifest):
     pf=preflight(cfg,config_path,manifest); paths,goldrows,corpus,dev,held=_load(cfg,config_path)
@@ -223,14 +281,14 @@ def replay(args,cfg,config_path,manifest):
         if key not in expected or key in indexed: raise ValueError(f"unexpected or duplicate replay row: {key}")
         if x.get("status") not in {"completed","failed","timeout","aborted"}: raise ValueError(f"invalid replay status: {key}")
         indexed[key]=x
-    outputs=[]; corpus_by={x["source_id"]:x for x in corpus}
+    outputs=[]; corpus_by={x["source_id"]:x for x in corpus}; run_id=uuid.uuid4().hex
     for case in cases:
         visible=[corpus_by[s] for s in case["source_ids"]]
         for rep in range(1,int(cfg["repeats"])+1):
             for arm in cfg["arms"]:
                 key=(case["id"],arm,rep); x=indexed.get(key,{}); status=x.get("status","missing_response")
-                response_id=x.get("response_id") or hashlib.sha256(f"replay:{key}".encode()).hexdigest()[:16]
-                row={"case_id":case["id"],"scenario_id":case["scenario_id"],"category":case["category"],"arm":arm,"repeat":rep,"response_id":response_id,"visible_source_ids":[s["source_id"] for s in visible],"input_hashes":pf["hashes"],"frozen_corpus_source_hashes":{s["source_id"]:source_hash[s["source_id"]] for s in visible},"status":status,"adapter":"replay","evidence_status":"RECORDED_OUTPUT; retrieval/generation provenance must be attested separately","tool_results":x.get("tool_results",[]),"timing":x.get("timing",{}),"evidence":x.get("evidence",[]),"usage":x.get("usage",{})}
+                response_id=_replay_response_id(run_id,key)
+                row={"case_id":case["id"],"scenario_id":case["scenario_id"],"category":case["category"],"arm":arm,"repeat":rep,"response_id":response_id,"run_id":run_id,"run_split":args.split,"expected_slots":len(expected),"visible_source_ids":[s["source_id"] for s in visible],"input_hashes":pf["hashes"],"frozen_corpus_source_hashes":{s["source_id"]:source_hash[s["source_id"]] for s in visible},"status":status,"adapter":"replay","evidence_status":"RECORDED_OUTPUT; retrieval/generation provenance must be attested separately","tool_results":x.get("tool_results",[]),"timing":x.get("timing",{}),"evidence":x.get("evidence",[]),"usage":x.get("usage",{})}
                 if status=="completed": row["answer"]=x.get("answer")
                 if status!="completed": row["error_type"]=x.get("error_type","MissingOrFailedReplay"); row["error_message"]=x.get("error_message","No completed response recorded")[:240]
                 outputs.append(row)
@@ -251,8 +309,8 @@ def prepare_facts(output: Path,cfg,config_path,manifest):
     _atomic_private_write(out,json.dumps(artifact,ensure_ascii=False,indent=2)+"\n",private_parent=True)
     print(json.dumps({"output":str(out),"candidate_fact_count":len(facts),"written_to_lightrag":False,"acceptance_required":True})); return 0
 
-def _scores(results, goldrows, reviews=None):
-    gold={x["case_id"]:x for x in goldrows}; return score_rows(results,gold,reviews or [])
+def _scores(results, goldrows, reviews=None, corpus=None):
+    gold={x["case_id"]:x for x in goldrows}; return score_rows(results,gold,reviews or [],corpus=corpus or [])
 def main(argv=None):
     p=argparse.ArgumentParser(prog="ogr-product-validation"); p.add_argument("--config",type=Path,default=DEFAULT_CONFIG); p.add_argument("--manifest",type=Path,dest="manifest_global")
     sub=p.add_subparsers(dest="cmd",required=True)
@@ -273,8 +331,10 @@ def main(argv=None):
             if a.adapter=="fixture": return run_fixture(a,cfg,config_path,manifest)
             return run_live(a,cfg,config_path,manifest)
         if a.cmd=="replay": return replay(a,cfg,config_path,manifest)
-        preflight(cfg,config_path,manifest); results=_read_jsonl(a.results); reviews=_read_jsonl(a.reviews) if a.reviews else []
-        scored=_scores(results,_read_jsonl(_paths(cfg,config_path)["gold"]),reviews)
+        pf=preflight(cfg,config_path,manifest); results=_read_jsonl(a.results); reviews=_read_jsonl(a.reviews) if a.reviews else []
+        paths,goldrows,corpus,dev,held=_load(cfg,config_path)
+        _validate_result_population(results,cfg,dev,held,expected_hashes=pf["hashes"])
+        scored=_scores(results,goldrows,reviews,corpus)
         if a.cmd=="score": output=scored
         else:
             agg=aggregate(scored,cfg["arms"],cfg["bootstrap"]["samples"],cfg["bootstrap"]["seed"])

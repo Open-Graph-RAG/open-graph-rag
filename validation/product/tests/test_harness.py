@@ -7,7 +7,9 @@ from validation.product.adapters.http_readonly import HttpAdapter
 from validation.product.environments.prepare import prepare_snapshot
 from validation.product.scoring.score import score_rows
 from validation.product.scoring.aggregate import aggregate
-from validation.product.cli import _atomic_private_write, _private_directory, _validate_case_population, preflight, DEFAULT_CONFIG
+from validation.product.cli import (_atomic_private_write, _private_directory, _validate_case_population,
+                                    _validate_result_population, _replay_response_id, preflight,
+                                    run_live, DEFAULT_CONFIG)
 
 class HarnessTests(unittest.TestCase):
     def test_frozen_case_counts_categories_and_scenario_separation(self):
@@ -37,6 +39,54 @@ class HarnessTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,key):
                 preflight(cfg,DEFAULT_CONFIG,manifest)
 
+    def test_preflight_freeze_does_not_write_manifest_before_validation(self):
+        cfg=json.loads(DEFAULT_CONFIG.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as td:
+            manifest=Path(td)/"manifest.json"
+            with patch("validation.product.cli._validate_case_population",side_effect=ValueError("invalid population")):
+                with self.assertRaisesRegex(ValueError,"invalid population"):
+                    preflight(cfg,DEFAULT_CONFIG,manifest,freeze=True)
+            self.assertFalse(manifest.exists())
+
+    def test_scoring_input_must_contain_each_expected_case_arm_repeat_once(self):
+        cfg={"arms":["baseline","candidate"],"repeats":1}
+        dev=[{"id":"dev-a","scenario_id":"s1","category":"multi_hop"},{"id":"dev-b","scenario_id":"s2","category":"freshness"}]
+        held=[{"id":"held-a","scenario_id":"s3","category":"conflicts"}]
+        rows=[{"case_id":case["id"],"scenario_id":case["scenario_id"],"category":case["category"],
+               "arm":arm,"repeat":1,"run_split":"development","run_id":"r1","expected_slots":4,
+               "input_hashes":{"config":"frozen"}} for case in dev for arm in cfg["arms"]]
+        hashes={"config":"frozen"}
+        _validate_result_population(rows,cfg,dev,held,expected_hashes=hashes)
+        with self.assertRaisesRegex(ValueError,"missing"):
+            _validate_result_population(rows[:-1],cfg,dev,held,expected_hashes=hashes)
+        with self.assertRaisesRegex(ValueError,"duplicate"):
+            _validate_result_population([*rows,rows[0]],cfg,dev,held,expected_hashes=hashes)
+        with self.assertRaisesRegex(ValueError,"unexpected"):
+            _validate_result_population([*rows[:-1],{**rows[-1],"case_id":"unknown"}],cfg,dev,held,expected_hashes=hashes)
+        with self.assertRaisesRegex(ValueError,"metadata"):
+            _validate_result_population([*rows[:-1],{**rows[-1],"scenario_id":"wrong"}],cfg,dev,held,expected_hashes=hashes)
+        with self.assertRaisesRegex(ValueError,"frozen input hash"):
+            _validate_result_population([*rows[:-1],{**rows[-1],"input_hashes":{"config":"other"}}],cfg,dev,held,expected_hashes=hashes)
+
+    def test_replay_fallback_response_ids_are_isolated_per_run(self):
+        key=("case-1","baseline",1)
+        self.assertNotEqual(_replay_response_id("run-a",key),_replay_response_id("run-b",key))
+
+    def test_live_run_reports_nonzero_when_every_slot_fails_to_initialize(self):
+        case={"id":"case-1","scenario_id":"scenario-1","category":"multi_hop","source_ids":[]}
+        slot={"case_id":"case-1","arm":"baseline","repeat":1,"status":"not_started"}
+        slots={("case-1","baseline",1):slot}
+        args=type("Args",(),{"split":"development","approve_paid":False})()
+        cfg={"arms":["baseline"],"repeats":1,"bootstrap":{"seed":1}}
+        with tempfile.TemporaryDirectory() as td:
+            output=Path(td)/"run.jsonl"
+            with patch("validation.product.cli.preflight",return_value={"hashes":{}}), \
+                 patch("validation.product.cli._load",return_value=({},[],[],[case],[])), \
+                 patch("validation.product.cli._new_journal",return_value=(output,"r1",slots)), \
+                 patch("validation.product.cli._flush_journal"), \
+                 patch("validation.product.cli._schedule",return_value=[(case,"baseline",1)]):
+                self.assertEqual(run_live(args,cfg,DEFAULT_CONFIG,None),2)
+
     def test_fixture_ignores_gold_and_marks_non_lightrag(self):
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/"f.jsonl"; p.write_text(json.dumps({"case_id":"c","answers":{"baseline":{"classification":"ok"}}})+"\n")
@@ -59,6 +109,15 @@ class HarnessTests(unittest.TestCase):
         self.assertEqual(result["paired_complete_scenario_count"],1)
         self.assertEqual(result["paired_candidate_minus_baseline"]["grounded_task_success_rate_conservative_unreviewed_as_failure"]["point_estimate"],0.5)
 
+    def test_paired_bootstrap_omits_scenarios_with_different_case_sets(self):
+        rows=[
+            {"scenario_id":"s1","case_id":"c1","arm":"baseline","completed":True,"grounded_task_success":True},
+            {"scenario_id":"s1","case_id":"c2","arm":"candidate","completed":True,"grounded_task_success":True},
+        ]
+        result=aggregate({"rows":rows},["baseline","candidate"],100,4)
+        self.assertEqual(result["paired_complete_scenario_count"],0)
+        self.assertIsNone(result["paired_candidate_minus_baseline"]["completion_rate"]["point_estimate"])
+
     def test_human_reviews_gate_grounded_task_success_and_category_conflict_recall(self):
         row={"case_id":"c","scenario_id":"s","category":"conflicts","arm":"candidate","repeat":1,"response_id":"blind-1","status":"completed","visible_source_ids":["doc"],"answer":{"citations":["doc"]}}
         gold={"c":{"expected":{"required_claims":["claim"],"supporting_sources":["doc"],"must_not_claim":[],"known_unknowns":[]}}}
@@ -76,6 +135,24 @@ class HarnessTests(unittest.TestCase):
         review2["conflict_recall"]=False
         rejected=score_rows([row],gold,[review,review2])
         self.assertFalse(rejected["rows"][0]["grounded_task_success"])
+
+    def test_live_retrieval_metrics_use_ranked_chunks_and_frozen_source_mapping(self):
+        row={"case_id":"c","scenario_id":"s","category":"multi_hop","arm":"candidate","repeat":1,
+             "status":"completed","visible_source_ids":["a/source.txt","b/source.txt"],
+             "evidence_status":"LIVE_NOT_YET_REVIEWED","evidence":{
+                 "entities":[{"source_id":"not-a-chunk"}],
+                 "relationships":[{"file_path":"not-a-chunk"}],
+                 "chunks":[{"file_path":"/app/inputs/a/source.txt","chunk_id":"light-rag-chunk-1"},
+                           {"file_path":"/app/inputs/b/source.txt","chunk_id":"light-rag-chunk-2"}]}}
+        gold={"c":{"expected":{"supporting_sources":["a/source.txt"],"required_claims":[],"must_not_claim":[],"known_unknowns":[]},
+                   "evidence":[{"source_id":"a/source.txt","version":"1","evidence_id":"a/source.txt#body"}]}}
+        corpus=[{"source_id":"a/source.txt","version":"1","evidence_id":"a/source.txt#body"},
+                {"source_id":"b/source.txt","version":"2","evidence_id":"b/source.txt#body"}]
+        result=score_rows([row],gold,corpus=corpus)["rows"][0]
+        self.assertEqual(result["retrieval_source_ids"],["a/source.txt","b/source.txt"])
+        self.assertEqual(result["retrieval_evidence_precision"],0.5)
+        self.assertEqual(result["retrieval_reciprocal_rank"],1.0)
+        self.assertEqual(result["source_version_resolution_rate"],1.0)
 
     def test_direct_http_adapter_disabled_until_live_retrieval_wiring(self):
         with self.assertRaisesRegex(RuntimeError,"LightRAG/MCP A/B wiring"):

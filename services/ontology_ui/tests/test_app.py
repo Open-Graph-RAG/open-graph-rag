@@ -22,6 +22,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from services.ontology_ui import app as app_module  # noqa: E402
 from services.ontology_ui.app import create_app  # noqa: E402
+from services.ontology_ui.auth import SessionStore  # noqa: E402
 
 
 SESSION_SECRET = "x" * 64
@@ -251,6 +252,21 @@ class HealthTests(unittest.TestCase):
             _teardown(client)
 
 
+class SessionStoreCapacityTests(unittest.TestCase):
+    def test_one_principal_cannot_fill_global_session_capacity(self):
+        store=SessionStore(ttl=3600,maximum=3,maximum_per_principal=2)
+        old=store.create("valid-reader-token","workspace")
+        current=store.create("valid-reader-token","workspace")
+        latest=store.create("valid-reader-token","workspace")
+        other=store.create("other-reader-token","workspace")
+        self.assertIsNone(store.get(old))
+        self.assertIsNotNone(store.get(current))
+        self.assertIsNotNone(store.get(latest))
+        self.assertIsNotNone(store.get(other))
+        with self.assertRaisesRegex(RuntimeError,"capacity"):
+            store.create("third-principal-token","workspace")
+
+
 class AuthTests(unittest.TestCase):
     def setUp(self) -> None:
         self.client = _make_client(_default_fixtures())
@@ -281,6 +297,18 @@ class AuthTests(unittest.TestCase):
         self.assertIn("HttpOnly", cookie)
         self.assertIn("SameSite=strict", cookie)
         self.assertNotIn(VALID_TOKEN, cookie)
+
+    def test_capacity_failure_preserves_existing_session(self) -> None:
+        _login(self.client)
+        sid = self.client.cookies.get("ontology_session")
+        store = self.client.app.state.session_store
+        store.maximum = 1
+        response = self.client.post("/login", data={
+            "token": "u" * 40, "workspace": VALID_WORKSPACE, "next": "/"},
+            follow_redirects=False)
+        self.assertEqual(response.status_code, 503)
+        self.assertIsNotNone(store.get(sid))
+        self.assertEqual(self.client.get("/facts").status_code, 200)
 
     def test_secure_cookie_legacy_cookie_expiry_and_relogin_revocation(self) -> None:
         client = _make_client(_default_fixtures(), https_only=True)

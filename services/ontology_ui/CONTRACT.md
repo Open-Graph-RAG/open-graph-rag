@@ -40,8 +40,10 @@ adding silently.
   workspace configuration should be corrected by the operator.
 - `/logout` (POST) revokes the session and clears its cookie.
 - Sessions expire after eight hours and are held in a bounded (10,000-session)
-  in-memory store. Deploy exactly one UI process/replica; multi-worker or
-  multi-replica deployment is unsupported unless a shared session backend is added.
+  in-memory store, with at most 20 sessions per token/workspace pair; a new login
+  replaces that principal's oldest session. Deploy exactly one UI process/replica;
+  multi-worker or multi-replica deployment is unsupported unless a shared session
+  backend is added.
 - Cookies are HttpOnly, SameSite=Strict, and Secure when `ONTOLOGY_UI_HTTPS_ONLY=1`.
 - The token is **never rendered** in any page after login. The UI may
   display the last 4 characters of the token as a friendly handle in

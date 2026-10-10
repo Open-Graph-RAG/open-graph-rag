@@ -53,7 +53,12 @@ The first reviewed dataset freeze can be recorded with
 `python3 -m validation.product.cli preflight --freeze`. Do not use that flag to
 bless unreviewed gold: hashes establish integrity, not annotation quality.
 `replay RESPONSES.jsonl --split development` accepts externally recorded rows
-for scoring; missing and failed assignments remain in the denominator.
+for scoring; missing and failed assignments remain in the denominator. `score`
+and `report` reject result files unless they contain exactly one row for every
+expected case/arm/repeat assignment and match the current frozen input hashes.
+Retrieval diagnostics use LightRAG's ordered `data.chunks` only, resolve chunk
+paths against that case's visible sources and the frozen corpus, and report
+source-level version resolution (not LightRAG chunk-version metadata).
 
 `prepare SOURCE DESTINATION` clones only files listed by a pre-existing,
 sanitized `snapshot-manifest.json`. It refuses private configuration, symlinks,
@@ -84,7 +89,9 @@ these are configured and attested:
 - Approved, independently reviewed held-out gold before any held-out run.
 
 `config.yaml` leaves `live` empty and zeroes the example prices intentionally,
-so a provider run cannot start by default. No live run has been executed. The
-current Compose file is a wiring recipe, not a verified deployment; external
+so a provider run cannot start by default. The live runner still writes every
+assignment to its private failure journal and exits non-zero if no response
+completes; partial failures remain in the denominator. No live run has been
+executed. The current Compose file is a wiring recipe, not a verified deployment; external
 user tests and real organizational documents additionally require the safety
 gates in the charter, including authorization and offsite-restore commissioning.

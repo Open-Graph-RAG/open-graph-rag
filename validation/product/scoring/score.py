@@ -16,20 +16,36 @@ def _review_consensus(reviews: list[dict[str,Any]], response_id: str, required: 
     if len(adjudicators)!=1: return None,len(peer_ids),"disagreement_requires_single_adjudication"
     return {k:adjudicators[0]["adjudication"][k] for k in required},len(peer_ids),"adjudicated_disagreement"
 
-def _evidence_records(value):
+def _evidence_records(value, visible_source_ids, corpus_by_id):
+    """Resolve ranked LightRAG chunks to frozen source-level evidence only."""
+    if not isinstance(value,dict) or not isinstance(value.get("chunks"),list):
+        return []
+    visible=set(visible_source_ids or [])
     records=[]
-    if isinstance(value,dict):
-        sid=value.get("source_id") or value.get("file_path") or value.get("document_id") or value.get("doc_id")
-        if isinstance(sid,str): records.append({"source_id":sid,"version":value.get("version") or value.get("source_version"),"evidence_id":value.get("evidence_id") or value.get("chunk_id")})
-        for k,v in value.items():
-            if isinstance(v,(dict,list)): records.extend(_evidence_records(v))
-    elif isinstance(value,list):
-        for item in value: records.extend(_evidence_records(item))
+    for chunk in value["chunks"]:
+        if not isinstance(chunk,dict):
+            continue
+        sid=chunk.get("source_id") or chunk.get("document_id") or chunk.get("doc_id")
+        if sid not in visible:
+            file_path=chunk.get("file_path")
+            if not isinstance(file_path,str):
+                continue
+            normalized=file_path.replace("\\","/").rstrip("/")
+            matches=[source_id for source_id in visible if normalized==source_id or normalized.endswith("/"+source_id)]
+            if len(matches)!=1:
+                continue
+            sid=matches[0]
+        source=corpus_by_id.get(sid)
+        if source is None:
+            continue
+        records.append({"source_id":sid,"version":chunk.get("version") or chunk.get("source_version") or source.get("version"),
+                        "evidence_id":chunk.get("evidence_id") or source.get("evidence_id")})
     return records
 
-def score_rows(rows: list[dict[str,Any]], gold: dict[str,dict[str,Any]], reviews: list[dict[str,Any]]|None=None) -> dict[str,Any]:
+def score_rows(rows: list[dict[str,Any]], gold: dict[str,dict[str,Any]], reviews: list[dict[str,Any]]|None=None, corpus: list[dict[str,Any]]|None=None) -> dict[str,Any]:
     """Mechanical diagnostics plus consensus human judgments; no lexical groundedness."""
     reviews=reviews or []; out=[]
+    corpus_by_id={source.get("source_id"):source for source in (corpus or []) if isinstance(source,dict) and source.get("source_id")}
     for r in rows:
         g=gold.get(r.get("case_id"),{}); exp=g.get("expected",{}); answer=r.get("answer") if r.get("status")=="completed" else None
         cited=answer.get("citations",answer.get("supporting_sources",[])) if isinstance(answer,dict) else []
@@ -37,7 +53,7 @@ def score_rows(rows: list[dict[str,Any]], gold: dict[str,dict[str,Any]], reviews
         relevant=set(exp.get("supporting_sources",[])); valid=set(r.get("visible_source_ids",[]))
         applicable=list(REVIEW_FIELDS)+(["conflict_recall"] if r.get("category")=="conflicts" else [])
         consensus,reviewers,review_status=_review_consensus(reviews,r.get("response_id"),applicable) if r.get("response_id") else (None,0,"missing_response_id")
-        retrieved=_evidence_records(r.get("evidence",[])); retrieved_ids=list(dict.fromkeys(x["source_id"] for x in retrieved)); expected_evidence=exp.get("supporting_sources",[]); hit=set(retrieved_ids)&set(expected_evidence)
+        retrieved=_evidence_records(r.get("evidence",{}),r.get("visible_source_ids",[]),corpus_by_id); retrieved_ids=list(dict.fromkeys(x["source_id"] for x in retrieved)); expected_evidence=exp.get("supporting_sources",[]); hit=set(retrieved_ids)&set(expected_evidence)
         gold_pairs={(x.get("source_id"),x.get("version"),x.get("evidence_id")) for x in g.get("evidence",[])}
         got_pairs={(x.get("source_id"),x.get("version"),x.get("evidence_id")) for x in retrieved}
         version_required=len(gold_pairs); version_hits=len(gold_pairs&got_pairs)
