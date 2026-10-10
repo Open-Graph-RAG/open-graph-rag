@@ -128,7 +128,7 @@
     "harness_source:__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "harness_source:canonical.py": "69bc3e42f109e17494fb0198c447fb2f00641021dac03335a59eaa7a980bf226",
     "harness_source:cli.py": "0af5e84d2c11fc7cc980d14fb7dcb9b0c7e310b298a209d6484bc951de6d94a2",
-    "harness_source:equivalence.py": "1216ca2966220752bfc52b59b4dc61852addffa757edba9fb7c71e72db9e5db8",
+    "harness_source:equivalence.py": "00c2636214c7e38d79a8ae2d8f7665b782096db23ef504a7c66d649a74f0fbbc",
     "harness_source:adapters/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "harness_source:adapters/live.py": "5e2fc9589a2ad1cc21f2b2cbc2ad1d11710a806b23147c7f50db643a4068f8c9",
     "harness_source:adapters/fixture.py": "31c4741883972b7b5a8262d743481266af195fa6c37bbf7dcaf661b13ba1d5ff",

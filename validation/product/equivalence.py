@@ -76,7 +76,8 @@ def validate_environment_equivalence(attestation, corpus_path: Path, model, retr
 
 
 def _validate_retrieval_settings(retrieval, label):
-    if not isinstance(retrieval, dict) or retrieval.get("mode") not in _RETRIEVAL_MODES:
+    mode = retrieval.get("mode") if isinstance(retrieval, dict) else None
+    if not isinstance(mode, str) or mode not in _RETRIEVAL_MODES:
         raise ValueError(f"{label} must specify a supported mode")
     top_k = retrieval.get("top_k")
     if isinstance(top_k, bool) or not isinstance(top_k, int) or not 1 <= top_k <= 30:

@@ -83,9 +83,16 @@ class LiveTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'top_k'):
             validate_environment_equivalence(self.attest, self.root/'corpus.jsonl',
                 self.cfg['live']['model'], {'mode': 'mix', 'top_k': True})
+        with self.assertRaisesRegex(ValueError, 'supported mode'):
+            validate_environment_equivalence(self.attest, self.root/'corpus.jsonl',
+                self.cfg['live']['model'], {'mode': [], 'top_k': 1})
         with self.assertRaisesRegex(ValueError, 'top_k'):
             validate_environment_equivalence({**self.attest,
                 'retrieval': {'mode': 'mix', 'top_k': True}}, self.root/'corpus.jsonl',
+                self.cfg['live']['model'], {'mode': 'mix', 'top_k': 1})
+        with self.assertRaisesRegex(ValueError, 'supported mode'):
+            validate_environment_equivalence({**self.attest,
+                'retrieval': {'mode': [], 'top_k': 1}}, self.root/'corpus.jsonl',
                 self.cfg['live']['model'], {'mode': 'mix', 'top_k': 1})
 
         for gate in ('only_candidate_projection', 'synthetic_or_authorized_sources',
