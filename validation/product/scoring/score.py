@@ -38,8 +38,7 @@ def _evidence_records(value, visible_source_ids, corpus_by_id):
         source=corpus_by_id.get(sid)
         if source is None:
             continue
-        records.append({"source_id":sid,"version":chunk.get("version") or chunk.get("source_version") or source.get("version"),
-                        "evidence_id":chunk.get("evidence_id") or source.get("evidence_id")})
+        records.append({"source_id":sid,"version":source.get("version"),"evidence_id":source.get("evidence_id")})
     return records
 
 def score_rows(rows: list[dict[str,Any]], gold: dict[str,dict[str,Any]], reviews: list[dict[str,Any]]|None=None, corpus: list[dict[str,Any]]|None=None) -> dict[str,Any]:

@@ -138,7 +138,7 @@
     "harness_source:review/workflow.py": "3554157db8b0839266204b1b874a8dfa850401f0dbbda45498823ca1b0e9cb0b",
     "harness_source:scoring/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "harness_source:scoring/aggregate.py": "d617a7e2df2dc3a0a9be01929606e19ba7cc40fa0e7350f829172d40ee6e2afa",
-    "harness_source:scoring/score.py": "4dc7257fb8bfd34536538f0383775f208c94b3365df31dfcdef6cd7e345a9e3b",
+    "harness_source:scoring/score.py": "6567583fcefa928c76118e974a7525ab102b0e7f9ebcf21b01c93d0c37de17bc",
     "protocol:charter.md": "c8ad00f1f88804f30d63493476060cf7874c3e053d0e16d51a336532e8ebd485",
     "protocol:review/pilot-protocol.md": "1cb7d8629ea84774491af1c2645d381d5c9581e53dba6126c69ba98581028d48",
     "protocol:review/review-template.json": "b0b992212b721fb7d19049a9bc1b3bb20d8dbeca5d74ef7c1a05cf17ad682f14"

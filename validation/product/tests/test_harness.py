@@ -142,8 +142,8 @@ class HarnessTests(unittest.TestCase):
              "evidence_status":"LIVE_NOT_YET_REVIEWED","evidence":{
                  "entities":[{"source_id":"not-a-chunk"}],
                  "relationships":[{"file_path":"not-a-chunk"}],
-                 "chunks":[{"file_path":"/app/inputs/a/source.txt","chunk_id":"light-rag-chunk-1"},
-                           {"file_path":"/app/inputs/b/source.txt","chunk_id":"light-rag-chunk-2"}]}}
+                 "chunks":[{"file_path":"/app/inputs/a/source.txt","chunk_id":"light-rag-chunk-1","version":"999","source_version":"999","evidence_id":"chunk-specific-1"},
+                           {"file_path":"/app/inputs/b/source.txt","chunk_id":"light-rag-chunk-2","version":"999","source_version":"999","evidence_id":"chunk-specific-2"}]}}
         gold={"c":{"expected":{"supporting_sources":["a/source.txt"],"required_claims":[],"must_not_claim":[],"known_unknowns":[]},
                    "evidence":[{"source_id":"a/source.txt","version":"1","evidence_id":"a/source.txt#body"}]}}
         corpus=[{"source_id":"a/source.txt","version":"1","evidence_id":"a/source.txt#body"},
