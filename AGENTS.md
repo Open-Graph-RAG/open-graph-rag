@@ -50,3 +50,26 @@ Existing commits use short descriptions such as `initial commit` and `remove env
 ## Security & Configuration Tips
 
 Keep credentials in the ignored `.env`; document new settings in `.env.example`. Never commit secrets or database backups. Preserve bridge authentication and read-only tool behavior. `docker compose down` retains volumes; adding `-v` deletes persistent data.
+
+## Autonomous Development Policy
+
+Mission: develop Open Graph RAG as an open-source, self-hosted knowledge and decision layer for AI agents.
+
+Rules for automated agents:
+- Use one branch/worktree per task.
+- Keep changes focused on the assigned scope.
+- Add deterministic tests for behavior changes.
+- Preserve MCP authentication and authorization.
+- Do not change persistent storage contracts without an explicit migration plan.
+- Do not modify production data or secrets.
+- Never use `docker compose down -v`.
+- Never use production backups in CI.
+- Do not merge, release, or deploy autonomously.
+- Do not treat agent review as human approval.
+
+Definition of Done:
+- Acceptance criteria satisfied.
+- Relevant local tests pass.
+- Required GitHub CI checks pass.
+- Security and compatibility impact documented.
+- Draft PR includes test evidence and risks.
