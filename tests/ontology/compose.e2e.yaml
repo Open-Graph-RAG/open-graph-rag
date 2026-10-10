@@ -26,6 +26,7 @@ services:
         condition: service_healthy
     environment:
       WORKSPACE: ontology-e2e
+      POSTGRES_PASSWORD: ontology-e2e-postgres-password
       LIGHTRAG_API_KEY: ontology-e2e-lightrag-key
       LLM_BINDING_HOST: http://mock-provider:8000/v1
       LLM_BINDING_API_KEY: no-paid-api
