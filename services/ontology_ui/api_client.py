@@ -1,8 +1,8 @@
 """Async HTTP client for the ontology control-plane API.
 
 The UI server is read-only and never accepts a static API key. Each request
-is bound to a per-user bearer token and workspace stored in the signed
-session cookie. This client wraps the nine read endpoints the UI needs and
+is bound to a per-user bearer token and workspace resolved from the opaque
+server-side session. This client wraps the read endpoints the UI needs and
 translates non-2xx responses into a structured `UpstreamError` so the route
 layer can map them to the right user-facing panel.
 """

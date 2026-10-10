@@ -8,3 +8,10 @@ backup/private/
 .venv-kev/
 .cache/
 scripts/benchmark_*.json
+
+# Product validation artifacts can contain transcripts and sensitive sources.
+validation/product/.runs/
+validation/product/runs/
+validation/product/.environments/
+validation/product/private/
+validation/product/reports/generated/

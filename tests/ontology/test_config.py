@@ -22,3 +22,4 @@ class GovernedConfigurationTests(unittest.TestCase):
             self.assertTrue(all(len(token) == 64 for token in tokens))
             self.assertTrue(all(p["workspaces"] == ["company_governed"] for p in tokens.values()))
             self.assertNotIn("GENERATE_ONTOLOGY", text)
+            self.assertNotIn("ONTOLOGY_UI_SESSION_SECRET=", text)

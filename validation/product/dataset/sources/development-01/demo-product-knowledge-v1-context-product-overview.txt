@@ -1,0 +1,1 @@
+DEMO FICTIONAL CONTEXT DOCUMENT. Product: Northstar Workspace, a fictional subscription management suite. Product team: Northstar. The suite contains Customer Portal and Operations Console, which both use the shared Subscription Service. The company and all names, systems, tickets, designs, events, and URLs in this document are invented for demonstration.

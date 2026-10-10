@@ -2,7 +2,7 @@
 
 The UI server is a thin presentation layer over the existing ontology
 control-plane API. It logs users in with a workspace-scoped bearer
-token (stored in a signed cookie session), forwards every read to the
+token (stored server-side behind an opaque cookie), forwards every read to the
 nine `/v1/*` endpoints, and renders the results as Jinja2 templates.
 There are no write/POST endpoints besides `/login` and `/logout`; all
 mutations stay on the canonical ontology API.
@@ -23,13 +23,12 @@ from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from starlette.middleware.sessions import SessionMiddleware
 from starlette.status import HTTP_303_SEE_OTHER
 
 from . import auth
 from .api_client import OntologyClient, UpstreamError
 from .filters import register as register_filters
-from .auth import LoginRedirect, is_authenticated
+from .auth import LoginRedirect
 
 
 log = logging.getLogger(__name__)
@@ -253,7 +252,7 @@ def _error_context(
 
 def create_app(
     api_url: str,
-    session_secret: str,
+    session_secret: str = "",
     *,
     https_only: bool = False,
     upstream_client_factory: Any | None = None,
@@ -263,9 +262,8 @@ def create_app(
     Args:
         api_url: Base URL of the ontology control-plane API. The UI does
             not talk to the database; it only consumes `/v1/*` here.
-        session_secret: Long random string for the Starlette session
-            middleware. Must be at least 32 bytes; the production entry
-            point enforces this.
+        session_secret: Deprecated compatibility argument; opaque sessions
+            are server-side and do not use a signing secret.
         https_only: When true, the session cookie is `Secure`. Default
             `False` so the same image works on local `127.0.0.1` and in
             real HTTPS deployments.
@@ -276,8 +274,6 @@ def create_app(
     """
     if not api_url or not api_url.strip():
         raise ValueError("api_url is required")
-    if not session_secret or len(session_secret) < 32:
-        raise ValueError("session_secret must be at least 32 characters")
     api_url = api_url.rstrip("/")
 
     shared_http_client: httpx.AsyncClient = (
@@ -308,13 +304,17 @@ def create_app(
         openapi_url=None,
         lifespan=lifespan,
     )
-    app.add_middleware(
-        SessionMiddleware,
-        secret_key=session_secret,
-        max_age=8 * 3600,
-        same_site="strict",
-        https_only=https_only,
-    )
+    app.state.session_store = auth.SessionStore()
+    app.state.https_only = https_only
+
+    @app.middleware("http")
+    async def expire_legacy_signed_cookie(request: Request, call_next):
+        response = await call_next(request)
+        if "session" in request.cookies:
+            # Starlette's former signed credential cookie used this default name.
+            response.delete_cookie("session", path="/", httponly=True,
+                                   secure=https_only, samesite="strict")
+        return response
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
     register_filters(templates.env)
@@ -323,7 +323,8 @@ def create_app(
     app.state.http_client = shared_http_client
 
     @app.exception_handler(LoginRedirect)
-    async def _login_redirect_handler(_request: Request, exc: LoginRedirect):
+    async def _login_redirect_handler(request: Request, exc: LoginRedirect):
+        auth.clear_session(request, exc.response)
         return exc.response
 
     def _client_for(token: str, workspace: str) -> OntologyClient:
@@ -333,9 +334,10 @@ def create_app(
 
     def _login_redirect(request: Request) -> RedirectResponse:
         """Clear the session, set a flash, and return a redirect to `/login`."""
-        auth.clear_session(request)
-        request.session["flash"] = "Session expired or token invalid."
-        return _redirect(request, "/login", next_path=request.url.path)
+        response = _redirect(request, "/login", next_path=request.url.path)
+        response.headers["location"] += "&expired=1"
+        auth.clear_session(request, response)
+        return response
 
     def render(
         request: Request,
@@ -349,13 +351,15 @@ def create_app(
             "now": datetime.now(timezone.utc),
             "current_section": _current_section(request.url.path),
         }
-        if is_authenticated(request):
-            ctx["workspace"] = request.session.get("workspace", "")
-            token = request.session.get("token", "")
-            ctx["token_handle"] = token[-4:] if isinstance(token, str) and len(token) >= 4 else ""
+        principal = auth.principal(request)
+        if principal:
+            ctx["workspace"] = principal["workspace"]
+            ctx["token_handle"] = principal["token_handle"]
+            ctx["authenticated"] = True
         else:
             ctx["workspace"] = ""
             ctx["token_handle"] = ""
+            ctx["authenticated"] = False
         if context:
             ctx.update(context)
         return templates.TemplateResponse(request, name, ctx, status_code=status_code)
@@ -378,9 +382,7 @@ def create_app(
 
     @app.get("/login", response_class=HTMLResponse)
     async def login_get(request: Request, next: str = "/"):
-        # Surface any flash message written by an upstream 401 handler
-        # (e.g. "Session expired or token invalid.") and clear it on read.
-        flash = request.session.pop("flash", None)
+        flash = "Session expired or token invalid." if request.query_params.get("expired") == "1" else None
         return render(
             request,
             "login.html",
@@ -398,7 +400,7 @@ def create_app(
         workspace: str = Form(...),
         next: str = Form(default="/"),
     ):
-        ok, error = auth.login(request, token, workspace)
+        ok, error = auth.login(token, workspace)
         if not ok:
             return render(
                 request,
@@ -410,12 +412,31 @@ def create_app(
                 },
                 status_code=422,
             )
-        return RedirectResponse(url=_safe_next(next), status_code=HTTP_303_SEE_OTHER)
+        # The API is the authority for token/workspace grants; never establish a
+        # browser session based only on a caller-provided workspace value.
+        try:
+            await _client_for(token.strip(), workspace.strip()).list_ontologies()
+        except UpstreamError as exc:
+            denied = exc.status_code in (401, 403)
+            return render(request, "login.html", {"next": _safe_next(next),
+                "error": ("Token or workspace access denied by ontology API." if denied
+                          else "Ontology API is temporarily unavailable. Please try again."),
+                "workspace_hint": os.environ.get("ONTOLOGY_WORKSPACE", "")},
+                status_code=exc.status_code if denied else 503)
+        response = RedirectResponse(url=_safe_next(next), status_code=HTTP_303_SEE_OTHER)
+        try:
+            auth.issue_session(request, response, token.strip(), workspace.strip())
+        except RuntimeError:
+            return render(request, "login.html", {"next": _safe_next(next),
+                "error": "The console is temporarily unable to create a session. Try again later.",
+                "workspace_hint": os.environ.get("ONTOLOGY_WORKSPACE", "")}, status_code=503)
+        return response
 
     @app.post("/logout")
     async def logout(request: Request):
-        auth.clear_session(request)
-        return RedirectResponse(url="/login", status_code=HTTP_303_SEE_OTHER)
+        response = RedirectResponse(url="/login", status_code=HTTP_303_SEE_OTHER)
+        auth.clear_session(request, response)
+        return response
 
     @app.get("/", response_class=HTMLResponse)
     async def dashboard(request: Request):
@@ -818,11 +839,5 @@ def create_app(
 def production_app() -> FastAPI:
     """Uvicorn factory for the governed compose profile."""
     api_url = os.environ.get("ONTOLOGY_API_URL", DEFAULT_API_URL)
-    secret = os.environ.get("ONTOLOGY_UI_SESSION_SECRET", "")
-    if not secret or len(secret) < 32:
-        raise RuntimeError(
-            "ONTOLOGY_UI_SESSION_SECRET must be at least 32 characters; "
-            "generate one with `python3 -c 'import secrets; print(secrets.token_hex(48))'`."
-        )
     https_only = os.environ.get("ONTOLOGY_UI_HTTPS_ONLY", "").lower() in {"1", "true", "yes"}
-    return create_app(api_url, secret, https_only=https_only)
+    return create_app(api_url, https_only=https_only)
