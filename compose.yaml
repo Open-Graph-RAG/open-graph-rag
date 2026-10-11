@@ -135,6 +135,26 @@ services:
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
 
+  headroom:
+    image: ghcr.io/headroomlabs-ai/headroom:0.40.0@sha256:f1d829f5cb724a8d127bcad80aa532c8b8c2f80c8d455fbed293244662971c11
+    command: [--host, 0.0.0.0, --port, "8787"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8787:8787"
+    environment:
+      HEADROOM_PROXY_TOKEN: ${HEADROOM_PROXY_TOKEN:?Run python3 scripts/init_env.py}
+      HEADROOM_TELEMETRY: "off"
+      HEADROOM_BEACON: "off"
+    volumes:
+      - headroom_workspace:/root/.headroom
+    networks: [tools_api, knowledge_api]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/readyz', timeout=5)"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
   n8n:
     image: docker.n8n.io/n8nio/n8n:2.0.0
     restart: unless-stopped
@@ -215,3 +235,4 @@ volumes:
   librechat_images:
   librechat_logs:
   n8n_data:
+  headroom_workspace:

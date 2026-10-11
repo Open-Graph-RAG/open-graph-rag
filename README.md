@@ -15,6 +15,10 @@ n8n provides an interface for creating automations that call LightRAG.
 MongoDB is included because LibreChat requires it for users and conversations;
 Postgres does not replace it.
 
+Headroom also starts as a standalone local proxy at `127.0.0.1:8787` by
+default. This service slice does not route LibreChat, LightRAG, or any other
+application through Headroom; their existing provider paths remain unchanged.
+
 ## System architecture
 
 ```mermaid
@@ -126,11 +130,17 @@ access to the ones shown. Do not share `.env`.
 | `EMBEDDING_API_BASE`, `EMBEDDING_MODEL`, `EMBEDDING_DIM` | Local document/query embeddings | Ollama, `bge-m3`, `1024` |
 | `LIGHTRAG_API_KEY` | Generated local key for the LightRAG UI/API and n8n | Keep the generated value |
 | `MCP_TOKEN` | Generated authentication between LibreChat and the bridge | Keep the generated value |
+| `HEADROOM_PROXY_TOKEN` | Generated auth token for the standalone local Headroom proxy | Keep the generated value |
 
 Leave the generated database and application secrets in place. See
 [models and providers](docs/models-and-providers.md) for alternative providers and
 embedding migrations. Indexing and chat can incur provider charges even though
 embeddings run locally.
+
+For an existing checkout whose `.env` predates Headroom, add only its missing
+generated token with `python3 scripts/init_env.py --migrate-headroom`. The
+migration preserves existing bytes, settings, secrets, and file mode; it does
+not print the generated token. Fresh `.env` initialization includes the token.
 
 ### 4. Start and check the stack
 
@@ -147,7 +157,8 @@ The first startup downloads images, creates the database, and downloads
 `bge-m3` (about 1.2 GB) through the temporary `ollama-init` service. The model
 remains in the `ollama_data` volume; `ollama-init` exits with code 0 when it
 finishes. LightRAG waits for the download and must become healthy before MCP
-and LibreChat start.
+and LibreChat start. Headroom starts independently; its failure does not block
+the existing direct application paths.
 
 In `docker compose ps`, persistent services should be running, and services
 with health checks should become healthy. The completed `ollama-init` container
@@ -184,6 +195,49 @@ After registering the intended LibreChat users, you can set
 ```bash
 docker compose up -d librechat
 ```
+
+### Headroom standalone proxy
+
+The default Compose stack starts Headroom on the host's loopback address,
+`127.0.0.1:8787`, with a readiness check at `/readyz`. It is attached only to
+`tools_api` and `knowledge_api`, has a persistent `headroom_workspace` volume,
+and requires the generated `HEADROOM_PROXY_TOKEN`. No existing application is
+configured to call it; LibreChat and LightRAG continue using their direct
+provider settings. See the [upstream v0.40.0 proxy documentation](https://github.com/headroomlabs-ai/headroom/blob/v0.40.0/wiki/proxy.md)
+for the proxy's token protocol and command options.
+
+Compose pins
+`ghcr.io/headroomlabs-ai/headroom:0.40.0@sha256:f1d829f5cb724a8d127bcad80aa532c8b8c2f80c8d455fbed293244662971c11`
+(the linux/amd64 and linux/arm64 OCI index). The public
+[GHCR package metadata](https://github.com/headroomlabs-ai/headroom/pkgs/container/headroom)
+publishes per-platform SLSA provenance bound to amd64
+`sha256:be3ee00469f3b816c4ac170cec8a8c7dc7984465956d9ca62c3abd7a7160060b` and
+arm64 `sha256:6b496f42f4fbbdf8cef03ca70c6525a33f6706af70dcd208e6cb8eb45638e0a1`,
+both attributed to source commit
+[`855390d6110e0bbb199d9b97025baac16c2f5cf3`](https://github.com/headroomlabs-ai/headroom/commit/855390d6110e0bbb199d9b97025baac16c2f5cf3).
+The [v0.40.0 release](https://github.com/headroomlabs-ai/headroom/releases/tag/v0.40.0)
+provides release context. OCI metadata labels the image Apache-2.0;
+the upstream release includes its [Apache-2.0 LICENSE](https://github.com/headroomlabs-ai/headroom/blob/v0.40.0/LICENSE)
+and [NOTICE](https://github.com/headroomlabs-ai/headroom/blob/v0.40.0/NOTICE).
+Those source and metadata notices do not establish the license inventory of
+every image layer or transitive component.
+
+**Accepted image-inventory uncertainty (not a passed verification):** no
+image-digest-bound SBOM or signature was found. The exact Python/OS package
+inventory, transitive licenses, and presence or absence of optional/model
+packages therefore remain unknown. The upstream
+[source SBOM directory](https://github.com/headroomlabs-ai/headroom/tree/v0.40.0/sbom)
+is not bound to these image digests and is not proof of their runtime contents.
+The checked OCI metadata reports the container user as `root`; this slice does
+not override the image user. The image was not pulled or run for this change.
+
+The service publishes only on host loopback, requires a proxy token for
+non-loopback requests, and has no application routing or provider credentials
+configured. Both the anonymous beacon and local telemetry are explicitly off
+(`HEADROOM_BEACON=off`, `HEADROOM_TELEMETRY=off`). Compose does not configure
+request/response-body logging or optional model-based compression. Runtime
+equivalence, health behavior, provider behavior, savings, latency, and quality
+have not been verified or measured.
 
 ## First query
 
@@ -331,6 +385,7 @@ and the public n8n URL. `N8N_PORT` and `N8N_TIMEZONE` can be configured in
 | n8n | Automation workflows and credentials | `n8n_data` volume (SQLite and encryption key) |
 | Postgres 17 + pgvector | Graph, vectors, chunks/documents, cache, and indexing status | `postgres_data` volume |
 | MCP | Translates `knowledge_search` to `POST /query/data` | No database of its own |
+| Headroom | Standalone HTTP proxy; no application callers configured | `headroom_workspace` named volume |
 | MongoDB | LibreChat application store | `mongo_data` volume |
 
 LightRAG uses `PGKVStorage`, `PGDocStatusStorage`, `PGVectorStorage`, and

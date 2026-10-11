@@ -24,7 +24,7 @@ class FakeConfig:
                 "mongodb": {"volumes": [{"type": "volume", "source": "mongo_data"}]},
                 "librechat": {"volumes": [{"type": "volume", "source": "librechat_data"}]},
             },
-            "volumes": {"postgres_data": {}, "mongo_data": {}, "librechat_data": {}},
+            "volumes": {"postgres_data": {}, "mongo_data": {}, "librechat_data": {}, "headroom_workspace": {}},
         }
 
     @contextlib.contextmanager
@@ -36,6 +36,10 @@ class FakeConfig:
 
     def running(self):
         return ["postgres", "mongodb", "librechat"]
+
+    def archive_volume(self, logical, destination):
+        self.events.append(("archive", logical))
+        destination.write_bytes(b"volume archive")
 
     def run(self, args, input=None):
         self.events.append(tuple(args))
@@ -52,6 +56,19 @@ class FakeConfig:
 
 
 class BackupTests(unittest.TestCase):
+    def test_snapshot_includes_headroom_workspace_volume(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = FakeConfig(tmp)
+            destination = Path(tmp) / "snapshots"
+
+            captured = backup_engine.snapshot_volumes(config, destination)
+
+            self.assertIn("headroom_workspace", captured)
+            self.assertEqual(
+                (destination / "volumes" / "headroom_workspace.tar").read_bytes(),
+                b"volume archive",
+            )
+
     def test_backup_resumes_writers_before_marking_complete(self):
         with tempfile.TemporaryDirectory() as tmp:
             config = FakeConfig(tmp)
