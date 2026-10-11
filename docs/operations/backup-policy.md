@@ -19,6 +19,7 @@ Backups include database-aware dumps and the related application files:
 | Compose files and application configuration | Repository snapshot | Critical |
 | Activepieces state, when enabled | Overlay volumes and configuration | Critical |
 | Ollama model cache | `ollama_data` volume | Rebuildable; included if configured |
+| Headroom default `~/.headroom` workspace | `headroom_workspace` volume | Included in volume snapshots; image-specific contents/recovery semantics are not runtime-verified |
 
 Never copy a running PostgreSQL or MongoDB volume as a substitute for its
 logical dump. The database dump and file snapshot are coordinated by briefly
