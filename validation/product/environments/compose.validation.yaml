@@ -82,6 +82,7 @@ services:
       OGR_VALIDATION_CANDIDATE_KEY: ${OGR_VALIDATION_LIGHTRAG_KEY:?Set validation-only key}
       OGR_VALIDATION_PROVIDER_URL: ${OGR_VALIDATION_PROVIDER_URL:-}
       OGR_VALIDATION_API_KEY: ${OGR_VALIDATION_API_KEY:-}
+      OGR_VALIDATION_LOCAL_EMBEDDING_MODEL: ${OGR_VALIDATION_LOCAL_EMBEDDING_MODEL:-bge-m3}
     networks: [validation]
     depends_on:
       validation-baseline:

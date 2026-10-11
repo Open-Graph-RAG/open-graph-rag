@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 from validation.product.adapters.live import LiveAdapter, LiveRunError, bounded_post
+from validation.product.equivalence import validate_environment_equivalence
 
 
 class LiveTests(unittest.TestCase):
@@ -14,7 +15,9 @@ class LiveTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
         (self.root / 'corpus.jsonl').write_text('{}\n')
-        self.cfg = {'_config_base': str(self.root), 'arms': ['baseline', 'candidate'],
+        self.cfg = {'_config_base': str(self.root),
+            'environment_recipe': str(Path(__file__).resolve().parents[1] / 'environments/compose.validation.yaml'),
+            'arms': ['baseline', 'candidate'],
             'dataset': {'corpus': 'corpus.jsonl'},
             'budget': {'max_requests': 8, 'max_total_input_tokens': 100000,
                 'max_total_output_tokens': 400, 'max_input_tokens': 12000,
@@ -32,8 +35,8 @@ class LiveTests(unittest.TestCase):
                 'allowed_provider_hosts': ['provider.example']}}
         self.attest = {'shared_snapshot_sha256': 'a' * 64,
             'corpus_sha256': hashlib.sha256((self.root/'corpus.jsonl').read_bytes()).hexdigest(),
-            'model_revision': 'frozen-model', 'embedding_revision': 'local-model',
-            'embedding_dimensions': 768, 'retrieval': self.cfg['live']['retrieval'],
+            'model_revision': 'frozen-model', 'embedding_revision': 'bge-m3',
+            'embedding_dimensions': 1024, 'retrieval': self.cfg['live']['retrieval'],
             'only_candidate_projection': True, 'baseline_preserved': True,
             'synthetic_or_authorized_sources': True, 'retrieval_uses_only_local_models': True}
         self.write_attest()
@@ -61,6 +64,57 @@ class LiveTests(unittest.TestCase):
     def adapter(self):
         return LiveAdapter(self.cfg, 'same prompt', True, self.transport)
 
+    def test_environment_equivalence_validator_checks_frozen_inputs_and_gates(self):
+        self.assertEqual(validate_environment_equivalence(self.attest,
+            self.root/'corpus.jsonl', self.cfg['live']['model'], self.cfg['live']['retrieval'],
+            'bge-m3', 1024), self.attest)
+
+        invalid = [
+            ({key: value for key, value in self.attest.items() if key != 'embedding_revision'}, 'missing required fields'),
+            ({**self.attest, 'corpus_sha256': 'not-a-sha256'}, 'corpus_sha256'),
+            ({**self.attest, 'shared_snapshot_sha256': 'not-a-sha256'}, 'shared_snapshot_sha256'),
+            ({**self.attest, 'model_revision': 'other-model'}, 'model revision'),
+            ({**self.attest, 'embedding_revision': 'arbitrary-invalid-model'}, 'embedding revision'),
+            ({**self.attest, 'embedding_dimensions': 7}, 'embedding dimensions'),
+            ({**self.attest, 'retrieval': {'mode': 'mix', 'top_k': 11}}, 'retrieval settings'),
+            ({**self.attest, 'corpus_sha256': '0' * 64}, 'corpus SHA-256'),
+            ({**self.attest, 'embedding_dimensions': True}, 'embedding_dimensions'),
+        ]
+        for attestation, message in invalid:
+            with self.subTest(message=message), self.assertRaisesRegex(ValueError, message):
+                validate_environment_equivalence(attestation, self.root/'corpus.jsonl',
+                    self.cfg['live']['model'], self.cfg['live']['retrieval'], 'bge-m3', 1024)
+
+        with self.assertRaisesRegex(ValueError, 'top_k'):
+            validate_environment_equivalence(self.attest, self.root/'corpus.jsonl',
+                self.cfg['live']['model'], {'mode': 'mix', 'top_k': True}, 'bge-m3', 1024)
+        with self.assertRaisesRegex(ValueError, 'supported mode'):
+            validate_environment_equivalence(self.attest, self.root/'corpus.jsonl',
+                self.cfg['live']['model'], {'mode': [], 'top_k': 1}, 'bge-m3', 1024)
+        with self.assertRaisesRegex(ValueError, 'top_k'):
+            validate_environment_equivalence({**self.attest,
+                'retrieval': {'mode': 'mix', 'top_k': True}}, self.root/'corpus.jsonl',
+                self.cfg['live']['model'], {'mode': 'mix', 'top_k': 1}, 'bge-m3', 1024)
+        with self.assertRaisesRegex(ValueError, 'supported mode'):
+            validate_environment_equivalence({**self.attest,
+                'retrieval': {'mode': [], 'top_k': 1}}, self.root/'corpus.jsonl',
+                self.cfg['live']['model'], {'mode': 'mix', 'top_k': 1}, 'bge-m3', 1024)
+
+        for gate in ('only_candidate_projection', 'synthetic_or_authorized_sources',
+                     'baseline_preserved', 'retrieval_uses_only_local_models'):
+            with self.subTest(gate=gate), self.assertRaisesRegex(ValueError, 'gate'):
+                validate_environment_equivalence({**self.attest, gate: False},
+                    self.root/'corpus.jsonl', self.cfg['live']['model'], self.cfg['live']['retrieval'],
+                    'bge-m3', 1024)
+
+    def test_environment_equivalence_errors_do_not_echo_attested_values(self):
+        secret_marker = 'DO_NOT_ECHO_ATTESTATION_VALUE'
+        with self.assertRaises(ValueError) as error:
+            validate_environment_equivalence({**self.attest, 'model_revision': secret_marker},
+                self.root/'corpus.jsonl', self.cfg['live']['model'], self.cfg['live']['retrieval'],
+                'bge-m3', 1024)
+        self.assertNotIn(secret_marker, str(error.exception))
+
     def test_real_retrieval_both_arms_identical_prompt_gold_not_sent(self):
         adapter = self.adapter()
         for arm in self.cfg['arms']:
@@ -77,6 +131,13 @@ class LiveTests(unittest.TestCase):
     def test_no_paid_authorization_no_requests(self):
         with self.assertRaises(ValueError):
             LiveAdapter(self.cfg, 'same', False, self.transport)
+        self.assertEqual(self.calls, [])
+
+    def test_live_adapter_rejects_embedding_mismatch_before_requests(self):
+        self.attest['embedding_revision'] = 'arbitrary-invalid-model'
+        self.write_attest()
+        with self.assertRaisesRegex(ValueError, 'embedding revision'):
+            self.adapter()
         self.assertEqual(self.calls, [])
 
     def test_zero_prices_and_unattested_remote_retrieval_fail_closed(self):

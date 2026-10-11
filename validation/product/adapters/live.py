@@ -14,6 +14,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from urllib.parse import urlsplit
+from ..equivalence import read_and_validate_environment_equivalence
 
 
 class LiveRunError(RuntimeError):
@@ -73,29 +74,18 @@ class LiveAdapter:
         if not isinstance(self.model, str) or not self.model:
             raise ValueError("pinned model revision required")
         self.retrieval = self.live.get("retrieval")
-        if not isinstance(self.retrieval, dict) or self.retrieval.get("mode") not in {"mix", "local", "global", "hybrid", "naive"}:
-            raise ValueError("explicit identical retrieval configuration required")
-        if not isinstance(self.retrieval.get("top_k"), int) or not 1 <= self.retrieval["top_k"] <= 30:
-            raise ValueError("top_k must be 1..30")
-        forbidden = {"query", "workspace", "api_key", "token"}
-        if forbidden & self.retrieval.keys():
-            raise ValueError("retrieval configuration includes reserved fields")
         attestation_path = self.live.get("equivalence_manifest")
         if not attestation_path:
             raise ValueError("frozen environment equivalence attestation required")
         base = Path(cfg.get("_config_base", Path(__file__).resolve().parents[1]))
-        attestation = json.loads((base / attestation_path).read_text())
-        required = {"shared_snapshot_sha256", "corpus_sha256", "model_revision", "embedding_revision", "embedding_dimensions", "retrieval", "only_candidate_projection", "synthetic_or_authorized_sources", "baseline_preserved", "retrieval_uses_only_local_models"}
-        if not required <= attestation.keys() or any(not attestation.get(k) for k in required):
-            raise ValueError("environment equivalence attestation incomplete")
-        if attestation["model_revision"] != self.model or attestation["retrieval"] != self.retrieval:
-            raise ValueError("attested model/retrieval differ from run configuration")
-        for k in ("only_candidate_projection", "synthetic_or_authorized_sources", "baseline_preserved", "retrieval_uses_only_local_models"):
-            if attestation[k] is not True:
-                raise ValueError("environment attestation gate not met")
-        import hashlib
-        if attestation["corpus_sha256"] != hashlib.sha256((base / cfg["dataset"]["corpus"]).read_bytes()).hexdigest():
-            raise ValueError("attested corpus does not match frozen corpus")
+        recipe_path = cfg.get("environment_recipe")
+        if not isinstance(recipe_path, str) or not recipe_path.strip():
+            raise ValueError("environment recipe required for equivalence validation")
+        recipe_path = Path(recipe_path)
+        if not recipe_path.is_absolute():
+            recipe_path = base / recipe_path
+        read_and_validate_environment_equivalence(base / attestation_path,
+            base / cfg["dataset"]["corpus"], self.model, self.retrieval, recipe_path)
         self.urls, self.keys = {}, {}
         for arm in cfg["arms"]:
             url_env = self.live.get(f"{arm}_url_env")

@@ -4,6 +4,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 from .adapters.fixture import FixtureAdapter
+from .equivalence import read_and_validate_environment_equivalence
 from .environments.prepare import prepare_snapshot
 from .scoring.score import score_rows
 from .scoring.aggregate import aggregate
@@ -56,8 +57,11 @@ def _paths(cfg: dict[str,Any], config_path: Path):
     if cfg.get("environment_recipe"):
         paths["environment_recipe"]=(base/cfg["environment_recipe"]).resolve()
     live=cfg.get("live",{})
-    if isinstance(live,dict) and live.get("equivalence_manifest"):
-        paths["environment_equivalence"]=(base/live["equivalence_manifest"]).resolve()
+    if isinstance(live,dict) and live.get("equivalence_manifest") is not None:
+        equivalence_manifest=live["equivalence_manifest"]
+        if not isinstance(equivalence_manifest,str) or not equivalence_manifest.strip():
+            raise ValueError("live.equivalence_manifest must be a non-empty path")
+        paths["environment_equivalence"]=(base/equivalence_manifest).resolve()
     return paths
 
 def _validate_case_population(dev: list[dict[str,Any]], held: list[dict[str,Any]]) -> None:
@@ -136,6 +140,13 @@ def preflight(cfg, config_path: Path=DEFAULT_CONFIG, manifest_override: Path|Non
     files=_paths(cfg,config_path); manifest=(manifest_override or (config_path.resolve().parent/cfg["manifest"])).resolve()
     for name,p in files.items():
         if not p.is_file(): raise ValueError(f"required frozen input missing: {name} ({p})")
+    if "environment_equivalence" in files:
+        live=cfg.get("live",{})
+        recipe=files.get("environment_recipe")
+        if recipe is None:
+            raise ValueError("environment recipe required for equivalence validation")
+        read_and_validate_environment_equivalence(files["environment_equivalence"],files["corpus"],
+            live.get("model"),live.get("retrieval"),recipe)
     dev=_read_jsonl(files["development_cases"]); held=_read_jsonl(files["heldout_cases"]); gold=_read_jsonl(files["gold"]); corpus=_read_jsonl(files["corpus"])
     source_root=(config_path.resolve().parent/"dataset/sources").resolve(); source_files={}
     source_by_id={}
