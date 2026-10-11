@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from pathlib import Path
 
@@ -26,11 +27,37 @@ _BOOLEAN_GATES = (
     "retrieval_uses_only_local_models",
 )
 _SHA256 = re.compile(r"[0-9a-fA-F]{64}\Z")
+_RECIPE_EMBEDDING_MODEL = re.compile(
+    r"^\s*EMBEDDING_MODEL:\s+\$\{OGR_VALIDATION_LOCAL_EMBEDDING_MODEL:-([^}\r\n]+)\}\s*$",
+    re.MULTILINE,
+)
+_RECIPE_EMBEDDING_DIMENSIONS = re.compile(
+    r"^\s*EMBEDDING_DIM:\s*[\"']?([0-9]+)[\"']?\s*$", re.MULTILINE
+)
 _RETRIEVAL_MODES = {"mix", "local", "global", "hybrid", "naive"}
 _RESERVED_RETRIEVAL_FIELDS = {"query", "workspace", "api_key", "token"}
 
 
-def validate_environment_equivalence(attestation, corpus_path: Path, model, retrieval):
+def embedding_settings_from_recipe(recipe_path: Path):
+    """Resolve the pinned recipe's local embedding model and dimensions offline."""
+    try:
+        recipe = Path(recipe_path).read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        raise ValueError("environment recipe is unreadable") from None
+
+    model_defaults = _RECIPE_EMBEDDING_MODEL.findall(recipe)
+    dimensions = _RECIPE_EMBEDDING_DIMENSIONS.findall(recipe)
+    if len(model_defaults) != 1 or len(dimensions) != 1:
+        raise ValueError("environment recipe must declare one pinned embedding model and dimension")
+
+    model = os.environ.get("OGR_VALIDATION_LOCAL_EMBEDDING_MODEL", model_defaults[0])
+    if not isinstance(model, str) or not model.strip():
+        raise ValueError("configured embedding revision must be non-empty")
+    return model, int(dimensions[0])
+
+
+def validate_environment_equivalence(attestation, corpus_path: Path, model, retrieval,
+                                     embedding_revision, embedding_dimensions):
     """Validate attested frozen inputs against the configured corpus/model/retrieval."""
     if not isinstance(attestation, dict):
         raise ValueError("environment equivalence attestation must be a JSON object")
@@ -56,6 +83,16 @@ def validate_environment_equivalence(attestation, corpus_path: Path, model, retr
         raise ValueError("pinned model revision required")
     if attestation["model_revision"] != model:
         raise ValueError("attested model revision does not match configured model")
+
+    if not isinstance(embedding_revision, str) or not embedding_revision.strip():
+        raise ValueError("configured embedding revision required")
+    if attestation["embedding_revision"] != embedding_revision:
+        raise ValueError("attested embedding revision does not match configured recipe")
+    if (isinstance(embedding_dimensions, bool) or not isinstance(embedding_dimensions, int)
+            or embedding_dimensions <= 0):
+        raise ValueError("configured embedding dimensions must be a positive integer")
+    if dimensions != embedding_dimensions:
+        raise ValueError("attested embedding dimensions do not match configured recipe")
 
     _validate_retrieval_settings(retrieval, "retrieval configuration")
     _validate_retrieval_settings(attestation["retrieval"], "attested retrieval settings")
@@ -94,10 +131,13 @@ def _same_json_value(left, right):
         return False
 
 
-def read_and_validate_environment_equivalence(path: Path, corpus_path: Path, model, retrieval):
+def read_and_validate_environment_equivalence(path: Path, corpus_path: Path, model, retrieval,
+                                              recipe_path: Path):
     """Read an attestation without exposing its contents in errors, then validate it."""
     try:
         attestation = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError):
         raise ValueError("environment equivalence manifest is unreadable or invalid JSON") from None
-    return validate_environment_equivalence(attestation, corpus_path, model, retrieval)
+    embedding_revision, embedding_dimensions = embedding_settings_from_recipe(recipe_path)
+    return validate_environment_equivalence(attestation, corpus_path, model, retrieval,
+        embedding_revision, embedding_dimensions)

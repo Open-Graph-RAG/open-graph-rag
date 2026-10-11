@@ -78,8 +78,14 @@ class LiveAdapter:
         if not attestation_path:
             raise ValueError("frozen environment equivalence attestation required")
         base = Path(cfg.get("_config_base", Path(__file__).resolve().parents[1]))
+        recipe_path = cfg.get("environment_recipe")
+        if not isinstance(recipe_path, str) or not recipe_path.strip():
+            raise ValueError("environment recipe required for equivalence validation")
+        recipe_path = Path(recipe_path)
+        if not recipe_path.is_absolute():
+            recipe_path = base / recipe_path
         read_and_validate_environment_equivalence(base / attestation_path,
-            base / cfg["dataset"]["corpus"], self.model, self.retrieval)
+            base / cfg["dataset"]["corpus"], self.model, self.retrieval, recipe_path)
         self.urls, self.keys = {}, {}
         for arm in cfg["arms"]:
             url_env = self.live.get(f"{arm}_url_env")

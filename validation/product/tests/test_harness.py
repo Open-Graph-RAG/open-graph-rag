@@ -45,8 +45,8 @@ class HarnessTests(unittest.TestCase):
         retrieval={"mode":"mix","top_k":12}
         attestation={"shared_snapshot_sha256":"a"*64,
             "corpus_sha256":hashlib.sha256(corpus.read_bytes()).hexdigest(),
-            "model_revision":"frozen-model","embedding_revision":"local-model",
-            "embedding_dimensions":768,"retrieval":retrieval,
+            "model_revision":"frozen-model","embedding_revision":"bge-m3",
+            "embedding_dimensions":1024,"retrieval":retrieval,
             "only_candidate_projection":True,"synthetic_or_authorized_sources":True,
             "baseline_preserved":True,"retrieval_uses_only_local_models":True}
         with tempfile.TemporaryDirectory() as td:
@@ -61,6 +61,39 @@ class HarnessTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,"retrieval settings"):
                 preflight(cfg,DEFAULT_CONFIG,frozen,freeze=True)
             self.assertEqual(frozen.read_bytes(),frozen_bytes)
+
+            cfg["live"]["retrieval"]=retrieval
+            attestation["embedding_revision"]="arbitrary-invalid-model"
+            equivalence.write_text(json.dumps(attestation),encoding="utf-8")
+            with self.assertRaisesRegex(ValueError,"embedding revision"):
+                preflight(cfg,DEFAULT_CONFIG,frozen,freeze=True)
+            attestation["embedding_revision"]="bge-m3"
+            attestation["embedding_dimensions"]=7
+            equivalence.write_text(json.dumps(attestation),encoding="utf-8")
+            with self.assertRaisesRegex(ValueError,"embedding dimensions"):
+                preflight(cfg,DEFAULT_CONFIG,frozen,freeze=True)
+            self.assertEqual(frozen.read_bytes(),frozen_bytes)
+
+    def test_preflight_accepts_recipe_embedding_model_override(self):
+        cfg=json.loads(DEFAULT_CONFIG.read_text(encoding="utf-8"))
+        corpus=(DEFAULT_CONFIG.parent/cfg["dataset"]["corpus"]).resolve()
+        retrieval={"mode":"mix","top_k":12}
+        attestation={"shared_snapshot_sha256":"a"*64,
+            "corpus_sha256":hashlib.sha256(corpus.read_bytes()).hexdigest(),
+            "model_revision":"frozen-model","embedding_revision":"validation-embed-v2",
+            "embedding_dimensions":1024,"retrieval":retrieval,
+            "only_candidate_projection":True,"synthetic_or_authorized_sources":True,
+            "baseline_preserved":True,"retrieval_uses_only_local_models":True}
+        with tempfile.TemporaryDirectory() as td, patch.dict(os.environ,
+                {"OGR_VALIDATION_LOCAL_EMBEDDING_MODEL":"validation-embed-v2"}):
+            root=Path(td); equivalence=root/"equivalence.json"; frozen=root/"frozen.json"
+            equivalence.write_text(json.dumps(attestation),encoding="utf-8")
+            cfg["live"]={"equivalence_manifest":str(equivalence),"model":"frozen-model","retrieval":retrieval}
+            preflight(cfg,DEFAULT_CONFIG,frozen,freeze=True)
+            attestation["embedding_revision"]="bge-m3"
+            equivalence.write_text(json.dumps(attestation),encoding="utf-8")
+            with self.assertRaisesRegex(ValueError,"embedding revision"):
+                preflight(cfg,DEFAULT_CONFIG,frozen,freeze=True)
 
     def test_preflight_freeze_does_not_write_manifest_before_validation(self):
         cfg=json.loads(DEFAULT_CONFIG.read_text(encoding="utf-8"))

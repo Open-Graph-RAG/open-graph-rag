@@ -62,10 +62,13 @@ source-level version resolution (not LightRAG chunk-version metadata).
 
 When `live.equivalence_manifest` is configured, offline preflight validates its
 required fields and gates, SHA-256 formats, corpus digest, and pinned model and
-retrieval settings without network or provider access. Passing this structural
-check validates the attestation against frozen inputs only; it does not prove
-that a running deployment actually uses the attested snapshot, models, or
-retrieval settings, or that its endpoints are equivalent.
+retrieval settings without network or provider access. It also binds the
+attested embedding revision and dimensions to the validation Compose recipe
+(including the supported `OGR_VALIDATION_LOCAL_EMBEDDING_MODEL` override, which
+must be present in the preflight process environment when used). Passing this
+structural check validates the attestation against frozen inputs only; it does
+not prove that a running deployment actually uses the attested snapshot,
+models, or retrieval settings, or that its endpoints are equivalent.
 
 `prepare SOURCE DESTINATION` clones only files listed by a pre-existing,
 sanitized `snapshot-manifest.json`. It refuses private configuration, symlinks,

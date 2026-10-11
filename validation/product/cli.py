@@ -142,8 +142,11 @@ def preflight(cfg, config_path: Path=DEFAULT_CONFIG, manifest_override: Path|Non
         if not p.is_file(): raise ValueError(f"required frozen input missing: {name} ({p})")
     if "environment_equivalence" in files:
         live=cfg.get("live",{})
+        recipe=files.get("environment_recipe")
+        if recipe is None:
+            raise ValueError("environment recipe required for equivalence validation")
         read_and_validate_environment_equivalence(files["environment_equivalence"],files["corpus"],
-            live.get("model"),live.get("retrieval"))
+            live.get("model"),live.get("retrieval"),recipe)
     dev=_read_jsonl(files["development_cases"]); held=_read_jsonl(files["heldout_cases"]); gold=_read_jsonl(files["gold"]); corpus=_read_jsonl(files["corpus"])
     source_root=(config_path.resolve().parent/"dataset/sources").resolve(); source_files={}
     source_by_id={}
